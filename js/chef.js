@@ -1,7 +1,7 @@
-import { store, isDemo } from './store.js?v=20261016130742';
-import { state, render, showLoading } from './app.js?v=20261016130742';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016130742';
-import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox } from './util.js?v=20261016130742';
+import { store, isDemo } from './store.js?v=20261016131307';
+import { state, render, showLoading } from './app.js?v=20261016131307';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131307';
+import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox, photo, previewOf, packImg, imgMeta } from './util.js?v=20261016131307';
 
 const head = (right = '') => `<div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a><div class="flex"><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button>${right}</div></div>`;
 
@@ -87,13 +87,13 @@ async function viewDashboard(chef) {
   const full = posts.length >= MAX_POSTS_PER_CHEF;
   render(`<div class="wrap">${head('<button class="btn xs ghost" data-out>Sign out</button>')}
     <section class="glass card flex" style="gap:14px">
-      ${chef.photoUrl ? `<img class="avatar lg" src="${esc(chef.photoUrl)}" alt="">` : '<div class="avatar lg"></div>'}
+      ${chef.photoUrl ? photo(chef.photoUrl, { cls: 'avatar lg', small: true, eager: true }) : '<div class="avatar lg"></div>'}
       <div style="flex:1;min-width:0"><div class="eyebrow">Your profile</div><h1 class="h-title" style="font-size:1.5rem">${esc(chef.name)}</h1><a class="small linkish" href="#/c/${esc(chef.id)}">View public profile</a></div>
     </section>
     <div class="flex between" style="margin:22px 0 10px"><div class="label" style="margin:0">Gallery · ${posts.length}/${MAX_POSTS_PER_CHEF}</div>
       <label class="btn sm gold ${full ? 'is-disabled' : ''}" style="position:relative;overflow:hidden">＋ Add photo<input type="file" accept="image/*" id="add-post" style="position:absolute;inset:0;opacity:0;cursor:pointer" ${full ? 'disabled' : ''}></label></div>
     ${full ? `<p class="small muted" style="margin:-4px 0 10px">You've reached ${MAX_POSTS_PER_CHEF} posts. Delete one to add a new photo.</p>` : ''}
-    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.thumbUrl || p.imageUrl)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
+    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img class="ph" src="${esc(imgMeta(p.thumbUrl || p.imageUrl).src)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
         ${p.hidden ? '<span class="badge bad tile-badge">Hidden by Heebee</span>' : ''}
         <div class="tile-actions"><button class="btn xs glassy" data-edit="${esc(p.id)}" aria-label="Edit caption">✎</button><button class="btn xs glassy" data-del="${esc(p.id)}" aria-label="Delete">✕</button></div></div>`).join('')}</div>`
       : '<section class="glass card empty"><div class="sym">✦</div><p>Share photos of yourself and your dishes.</p><p class="muted small">They appear on your public profile like an Instagram grid.</p></section>'}
@@ -102,7 +102,7 @@ async function viewDashboard(chef) {
   </div>`);
   wireOut();
   const refresh = async () => viewDashboard(await store.getChef(chef.id));
-  $$('[data-view]').forEach((im) => (im.onclick = () => { const p = posts.find((x) => x.id === im.dataset.view); lightbox(p.imageUrl, p.caption); }));
+  $$('[data-view]').forEach((im) => (im.onclick = () => { const p = posts.find((x) => x.id === im.dataset.view); lightbox(p.imageUrl, p.caption, p.thumbUrl); }));
   $$('[data-del]').forEach((b) => (b.onclick = async () => {
     if (!(await confirmBox('Delete this photo?', 'It will be removed from your gallery.', { ok: 'Delete', danger: true }))) return;
     await store.deletePost(chef.id, posts.find((p) => p.id === b.dataset.del)); toast('Photo deleted'); refresh();
@@ -118,6 +118,7 @@ async function viewDashboard(chef) {
     try {
       blob = await resizeImage(file, isDemo ? { maxDim: 1000, quality: 0.75 } : { maxDim: 1800 });
       thumb = await resizeImage(blob, { maxDim: 480, quality: 0.78 });
+      thumb.preview = await previewOf(thumb);
     } catch (err) { return toast(err.message, { bad: true }); }
     const preview = URL.createObjectURL(blob);
     const s = openSheet(`<div class="sheet-head"><h2>New post</h2><button class="icon-btn glass" data-close aria-label="Close">✕</button></div>
@@ -138,7 +139,7 @@ async function viewDashboard(chef) {
 export function profileForm(container, chef, onSave) {
   let photoUrl = chef.photoUrl || '', coverUrl = chef.coverUrl || '';
   let exp = (chef.experience || []).map((x) => ({ ...x }));
-  const box = (url, label, h) => `<div class="upload-drop ${url ? 'has' : ''}" style="min-height:${h}px">${url ? `<img src="${esc(url)}" alt="">` : ''}<span class="over">${url ? 'Change' : '＋ ' + label}</span><input type="file" accept="image/*"></div>`;
+  const box = (url, label, h) => `<div class="upload-drop ${url ? 'has' : ''}" style="min-height:${h}px">${url ? photo(url, { eager: true }) : ''}<span class="over">${url ? 'Change' : '＋ ' + label}</span><input type="file" accept="image/*"></div>`;
   container.innerHTML = `<form class="glass card" novalidate>
     <div class="row2">
       <div class="field"><label>Profile photo</label><div data-up="photo">${box(photoUrl, 'Portrait', 170)}</div><div class="hint">Also used as the big photo on your profile.</div></div>
@@ -170,9 +171,11 @@ export function profileForm(container, chef, onSave) {
       const over = $('.over', el); over.textContent = 'Uploading…';
       try {
         const blob = await resizeImage(file, isDemo ? { maxDim: 900, quality: 0.75 } : { maxDim: 1600 });
-        const url = await store.uploadChef(chef.id, blob);
+        const [small, t] = await Promise.all([resizeImage(blob, { maxDim: 360, quality: 0.8 }), previewOf(blob)]);
+        const [full, s] = await Promise.all([store.uploadChef(chef.id, blob), store.uploadChef(chef.id, small)]);
+        const url = packImg(full, { t, s });
         let im = $('img', el); if (!im) { im = document.createElement('img'); el.prepend(im); }
-        im.src = url; el.classList.add('has'); over.textContent = 'Change';
+        im.src = imgMeta(url).src; el.classList.add('has'); over.textContent = 'Change';
         if (wrap.dataset.up === 'photo') photoUrl = url; else coverUrl = url;
       } catch (err) { over.textContent = 'Try again'; toast(err.message, { bad: true }); }
     };

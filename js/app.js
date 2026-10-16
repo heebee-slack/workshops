@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016130742';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016130742';
+import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016131307';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016131307';
 import {
   esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
-  toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON,
-} from './util.js?v=20261016130742';
+  toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON, photo, preload,
+} from './util.js?v=20261016131307';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016130742 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016131307 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -39,7 +39,7 @@ export function showLoading() {
 // True while the user is still on the screen this view started rendering for.
 export function navGuard() { const id = state.navId; return () => id === state.navId; }
 
-const img = (src, cls = '', alt = '', eager = false) => (src ? `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` : '');
+const img = (src, cls = '', alt = '', eager = false, small = false) => photo(src, { cls, alt, eager, small });
 const chefMap = async () => Object.fromEntries((await store.listChefs()).map((c) => [c.id, c]));
 
 // ---------- home feed ----------
@@ -90,7 +90,7 @@ async function viewHome() {
   // Warm the next screens: chef galleries and hero photos, while the phone is idle.
   (window.requestIdleCallback || setTimeout)(() => {
     for (const id of new Set(upcoming.map((e) => e.chefId).filter(Boolean))) store.listPosts(id).catch(() => {});
-    upcoming.slice(0, 4).forEach((e) => { const c = chefs[e.chefId]; if (c?.photoUrl) new Image().src = c.photoUrl; });
+    upcoming.slice(0, 4).forEach((e) => { const c = chefs[e.chefId]; preload(c?.photoUrl, true); });
   });
 }
 
@@ -141,7 +141,7 @@ async function viewEvent(id, preselect) {
       </section>
 
       ${chef && !chef.blocked ? `<a class="glass host-row card" href="#/c/${esc(chef.id)}">
-        ${chef.photoUrl ? img(chef.photoUrl, 'avatar', chef.name, true) : '<div class="avatar"></div>'}
+        ${chef.photoUrl ? img(chef.photoUrl, 'avatar', chef.name, true, true) : '<div class="avatar"></div>'}
         <div><div class="label" style="margin:0 0 2px">Hosted by</div><div style="font-weight:700">${esc(chef.name)}</div><div class="muted small">${esc(chef.title || '')}</div></div>
         <span class="chev">›</span></a>` : ''}
 
@@ -182,6 +182,10 @@ async function viewEvent(id, preselect) {
     sel = bt; paint();
   }));
   $('#bb-join').onclick = () => openJoinSheet(ev, sel, chefs);
+  if (chef && !chef.blocked) (window.requestIdleCallback || setTimeout)(() => {
+    preload(chef.coverUrl || chef.photoUrl);
+    store.listPosts(chef.id).then((ps) => ps.slice(0, 9).forEach((p) => preload(p.thumbUrl || p.imageUrl))).catch(() => {});
+  });
   paint();
 }
 
@@ -301,11 +305,11 @@ async function viewChef(id) {
   const upcoming = mine.filter((e) => !isPast(e));
   const past = mine.filter(isPast);
   const cover = chef.coverUrl || chef.photoUrl;
-  const mini = (e) => `<a class="mini-ev" href="#/e/${esc(e.id)}">${img(e.imageUrl, '', e.title)}<div><div style="font-weight:700">${esc(e.title)}</div><div class="muted small">${esc(dateRange(e))}${isPast(e) ? '' : ' · ' + fmtPrice(minPrice(e))}</div></div></a>`;
+  const mini = (e) => `<a class="mini-ev" href="#/e/${esc(e.id)}">${img(e.imageUrl, '', e.title, false, true)}<div><div style="font-weight:700">${esc(e.title)}</div><div class="muted small">${esc(dateRange(e))}${isPast(e) ? '' : ' · ' + fmtPrice(minPrice(e))}</div></div></a>`;
   render(`
     <div class="chef-hero">${cover ? img(cover, 'cover', chef.name, true) : ''}
       <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" data-back aria-label="Back">${ICON.back}</a><button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div>
-      <div class="panel glass-photo">${chef.photoUrl ? img(chef.photoUrl, 'avatar lg', chef.name) : ''}<div><div class="feature-tag">Chef at Heebee</div><h1>${esc(chef.name)}</h1><div class="small" style="opacity:.9">${esc(chef.title || '')}</div></div></div>
+      <div class="panel glass-photo">${chef.photoUrl ? img(chef.photoUrl, 'avatar lg', chef.name, true, true) : ''}<div><div class="feature-tag">Chef at Heebee</div><h1>${esc(chef.name)}</h1><div class="small" style="opacity:.9">${esc(chef.title || '')}</div></div></div>
     </div>
     <div class="wrap" style="margin-top:14px">
       <section class="glass stats card"><div><b>${mine.length}</b><span>Workshops</span></div><div><b>${upcoming.length}</b><span>Upcoming</span></div><div><b>${posts.length}</b><span>Posts</span></div></section>
@@ -314,11 +318,11 @@ async function viewChef(id) {
       ${(chef.achievements || []).length ? `<section class="glass card"><div class="label">Achievements</div><div class="ach">${chef.achievements.map((a) => `<span class="chip">✦ ${esc(a)}</span>`).join('')}</div></section>` : ''}
       ${upcoming.length ? `<section class="glass card"><div class="label">Upcoming workshops</div>${upcoming.map(mini).join('')}</section>` : ''}
       ${past.length ? `<section class="glass card"><div class="label">Past workshops</div>${past.map(mini).join('')}</section>` : ''}
-      ${posts.length ? `<div class="label" style="margin-top:22px">Gallery</div><div class="gallery">${posts.map((p, i) => `<button data-post="${i}" aria-label="Open photo">${img(p.thumbUrl || p.imageUrl, '', p.caption)}</button>`).join('')}</div>` : ''}
+      ${posts.length ? `<div class="label" style="margin-top:22px">Gallery</div><div class="gallery">${posts.map((p, i) => `<button data-post="${i}" aria-label="Open photo">${img(p.thumbUrl || p.imageUrl, '', p.caption, i < 9)}</button>`).join('')}</div>` : ''}
     </div>`);
   $('[data-share]').onclick = () => shareLink(chef.name, `${chef.name} at Heebee`, `${siteUrl()}#/c/${chef.id}`);
   $('[data-back]').onclick = (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } };
-  $$('[data-post]').forEach((b) => (b.onclick = () => { const p = posts[+b.dataset.post]; lightbox(p.imageUrl, p.caption); }));
+  $$('[data-post]').forEach((b) => (b.onclick = () => { const p = posts[+b.dataset.post]; lightbox(p.imageUrl, p.caption, p.thumbUrl); }));
 }
 
 // ---------- pay page (linked from the WhatsApp payment message) ----------
@@ -333,7 +337,7 @@ function viewPay(params) {
       <div class="eyebrow">Workshop payment${ref ? ' · ' + esc(ref) : ''}</div>
       ${am ? `<div class="pay-amt">${fmtPrice(am)}</div>` : ''}
       <p class="muted small" style="margin:0">Pay to ${esc(s.payeeName || 'Heebee')}</p>
-      ${s.qrUrl ? `<img class="qr" src="${esc(s.qrUrl)}" alt="UPI QR code">` : '<div class="spacer"></div>'}
+      ${s.qrUrl ? photo(s.qrUrl, { cls: 'qr', alt: 'UPI QR code', eager: true }) : '<div class="spacer"></div>'}
       ${s.upiId ? `<div class="copy-row"><span>${esc(s.upiId)}</span><button class="btn xs ghost" data-copy>Copy</button></div><div class="spacer"></div>
       <a class="btn gold block" href="${esc(upi)}">Pay with a UPI app</a>` : '<p class="muted">Payment details will be shared on WhatsApp.</p>'}
       <ol class="steps"><li>Pay the exact amount using the QR or UPI ID above.</li><li>Take a screenshot of the successful payment.</li><li>Send it to us on WhatsApp. We'll confirm your seat after verifying it.</li></ol>
@@ -360,9 +364,9 @@ async function route() {
   const parts = path.split('/').filter(Boolean);
   try {
     if (needsAuth()) ensureAuth();
-    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016130742'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016130742'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016130742'); return m.routeChef(parts.slice(1)); }
+    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016131307'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016131307'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016131307'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -398,7 +402,7 @@ export function ensureAuth() {
   authStarted = true;
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016130742');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016131307');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;

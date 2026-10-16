@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES } from './config.js?v=20261016130742';
+import { MAX_UPLOAD_BYTES } from './config.js?v=20261016131307';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -91,6 +91,25 @@ export async function resizeImage(file, { maxDim = 2048, quality = 0.85, maxByte
   if (!blob || blob.size > maxBytes) throw new Error('Image is too large even after resizing');
   return blob;
 }
+// A photo URL can carry a tiny blurred preview (t) and a small copy (s) after "#hbw=".
+// It's a URL fragment, so browsers never send it to the server; the field stays a plain string.
+export function imgMeta(u) {
+  if (!u) return { src: '' };
+  const i = u.indexOf('#hbw=');
+  if (i < 0) return { src: u };
+  try { return { src: u.slice(0, i), ...JSON.parse(decodeURIComponent(u.slice(i + 5))) }; } catch { return { src: u.slice(0, i) }; }
+}
+export const packImg = (src, meta) => `${src}#hbw=${encodeURIComponent(JSON.stringify(meta))}`;
+export const previewOf = async (blob) => blobToDataUrl(await resizeImage(blob, { maxDim: 20, quality: 0.5 }));
+// <img> that shows its blurred preview (or a warm placeholder) until the real photo has loaded.
+export const photo = (url, { cls = '', alt = '', eager = false, small = false } = {}) => {
+  if (!url) return '';
+  const m = imgMeta(url);
+  const src = (small && m.s) || m.src;
+  const bg = m.t ? ` style="background-image:url('${m.t}')"` : '';
+  return `<img class="ph ${cls}" src="${esc(src)}" alt="${esc(alt)}"${bg} ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+};
+export const preload = (url, small = false) => { if (url) { const m = imgMeta(url); new Image().src = (small && m.s) || m.src; } };
 export const blobToDataUrl = (blob) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
 
 // ---------- UI primitives ----------
@@ -137,10 +156,12 @@ export function confirmBox(title, body, { ok = 'Confirm', danger = false } = {})
   });
 }
 
-export function lightbox(src, caption) {
+export function lightbox(src, caption, placeholder) {
   const el = document.createElement('div');
   el.className = 'lightbox';
-  el.innerHTML = `<button class="icon-btn glass-photo close" aria-label="Close">✕</button><img src="${esc(src)}" alt=""><p class="cap">${esc(caption || '')}</p>`;
+  const m = imgMeta(src), p = placeholder ? imgMeta(placeholder) : {};
+  const bg = p.src || m.t ? ` style="background-image:url('${esc(p.src || m.t)}');background-size:contain;background-repeat:no-repeat;background-position:center"` : '';
+  el.innerHTML = `<button class="icon-btn glass-photo close" aria-label="Close">✕</button><img src="${esc(m.src)}" alt=""${bg}><p class="cap">${esc(caption || '')}</p>`;
   el.onclick = (e) => { if (e.target === el || e.target.closest('.close')) el.remove(); };
   document.body.appendChild(el);
 }

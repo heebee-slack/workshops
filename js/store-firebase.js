@@ -8,8 +8,8 @@ import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
-import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID, MAX_POSTS_PER_CHEF, ADMIN_EMAILS } from './config.js?v=20261016130742';
-import { uid, makeRef, siteUrl } from './util.js?v=20261016130742';
+import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID, MAX_POSTS_PER_CHEF, ADMIN_EMAILS } from './config.js?v=20261016131307';
+import { uid, makeRef, siteUrl, packImg } from './util.js?v=20261016131307';
 
 const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
@@ -109,7 +109,7 @@ export default {
     const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' });
     const imageUrl = await getDownloadURL(r);
     let thumbUrl = '', thumbPath = '';
-    if (thumb) { thumbPath = chefPath(chefId, `${pid}_t.jpg`); const tr = sref(st, thumbPath); await uploadBytes(tr, thumb, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' }); thumbUrl = await getDownloadURL(tr); }
+    if (thumb) { thumbPath = chefPath(chefId, `${pid}_t.jpg`); const tr = sref(st, thumbPath); await uploadBytes(tr, thumb, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' }); thumbUrl = await getDownloadURL(tr); if (thumb.preview) thumbUrl = packImg(thumbUrl, { t: thumb.preview }); }
     const b = writeBatch(fs);
     b.set(doc(fs, 'chefs', chefId, 'posts', pid), { imageUrl, thumbUrl, storagePath: path, thumbPath, caption: caption || '', hidden: false, createdAt: Date.now() });
     b.update(doc(fs, 'chefs', chefId), { postCount: increment(1) });

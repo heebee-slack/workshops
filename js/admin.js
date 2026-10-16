@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016130742';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016130742';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016131307';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016131307';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016130742';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016130742';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016130742';
+import { profileForm } from './chef.js?v=20261016131307';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016131307';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131307';
 import {
   esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
-  setFieldError, loading, validEmail, todayStr, lightbox, copyText,
-} from './util.js?v=20261016130742';
+  setFieldError, loading, validEmail, todayStr, lightbox, copyText, photo, previewOf, packImg, imgMeta,
+} from './util.js?v=20261016131307';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -51,7 +51,7 @@ function viewLogin() {
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016130742.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016131307.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -88,9 +88,12 @@ export function messageVars(bk, ev, extra = {}) {
 }
 const msg = (key, bk, ev) => fillTemplate(state.settings.templates[key], messageVars(bk, ev)).replace(/\n{3,}/g, '\n\n');
 
+// Uploads the photo plus a small copy (thumbnails/avatars) and a ~1 KB blurred preview, packed into one URL.
 async function uploadImage(file, folder, maxDim = 1600) {
   const blob = await resizeImage(file, { maxDim: isDemo ? 1200 : maxDim, quality: isDemo ? 0.75 : 0.85 });
-  return store.upload(`${folder}/${uid()}.jpg`, blob);
+  const [small, t] = await Promise.all([resizeImage(blob, { maxDim: 360, quality: 0.8 }), previewOf(blob)]);
+  const [url, s] = await Promise.all([store.upload(`${folder}/${uid()}.jpg`, blob), store.upload(`${folder}/${uid()}_s.jpg`, small)]);
+  return packImg(url, { t, s });
 }
 function wireUpload(el, folder, onUrl, maxDim) {
   const input = $('input[type=file]', el);
@@ -101,12 +104,12 @@ function wireUpload(el, folder, onUrl, maxDim) {
       const url = await uploadImage(file, folder, maxDim);
       el.classList.add('has'); let im = $('img', el);
       if (!im) { im = document.createElement('img'); el.prepend(im); }
-      im.src = url; over.textContent = 'Change photo'; onUrl(url);
+      im.src = imgMeta(url).src; over.textContent = 'Change photo'; onUrl(url);
     } catch (e) { over.textContent = prev; toast(e.message, { bad: true }); }
     input.value = '';
   };
 }
-export const uploadBox = (url, label = 'Upload photo', h = 180) => `<div class="upload-drop ${url ? 'has' : ''}" style="min-height:${h}px">${url ? `<img src="${esc(url)}" alt="">` : ''}<span class="over">${url ? 'Change photo' : '＋ ' + label}</span><input type="file" accept="image/*"></div>`;
+export const uploadBox = (url, label = 'Upload photo', h = 180) => `<div class="upload-drop ${url ? 'has' : ''}" style="min-height:${h}px">${url ? photo(url, { eager: true }) : ''}<span class="over">${url ? 'Change photo' : '＋ ' + label}</span><input type="file" accept="image/*"></div>`;
 
 // ---------- events list ----------
 async function viewEvents() {
@@ -118,7 +121,7 @@ async function viewEvents() {
     const seats = (ev.batches || []).reduce((n, b) => n + Number(b.seats || 0), 0);
     const conf = bk.filter((b) => b.status === 'confirmed').length, wait = bk.filter((b) => b.status === 'waitlist').length;
     return `<div class="list-row">
-      ${ev.imageUrl ? `<img class="thumb" src="${esc(ev.imageUrl)}" alt="">` : '<div class="thumb"></div>'}
+      ${ev.imageUrl ? photo(ev.imageUrl, { cls: 'thumb', small: true }) : '<div class="thumb"></div>'}
       <div class="grow"><div class="title">${esc(ev.title || 'Untitled')}</div>
         <div class="small muted">${esc(dateRange(ev) || 'No batches yet')} · ${(ev.batches || []).length} batch${(ev.batches || []).length === 1 ? '' : 'es'}</div>
         <div class="flex wrap-gap" style="gap:6px;margin-top:4px">${statusBadge(ev)}${ev.featured ? '<span class="badge gold">Featured</span>' : ''}<span class="badge ok">${conf}/${seats} confirmed</span>${wait ? `<span class="badge wait">${wait} waitlist</span>` : ''}</div></div>
@@ -432,7 +435,7 @@ async function viewChefs() {
   shell('chefs', `
     <div class="adm-head"><h1 class="h-title">Chefs</h1><button class="btn gold sm" id="add-chef">＋ Add chef</button></div>
     ${chefs.length ? `<section class="glass" style="padding:4px 0">${chefs.sort((a, b) => a.name.localeCompare(b.name)).map((c) => `<a class="list-row" href="#/admin/chefs/${esc(c.id)}" style="text-decoration:none;color:inherit">
-      ${c.photoUrl ? `<img class="avatar" src="${esc(c.photoUrl)}" alt="">` : '<div class="avatar"></div>'}
+      ${c.photoUrl ? photo(c.photoUrl, { cls: 'avatar', small: true }) : '<div class="avatar"></div>'}
       <div class="grow"><div class="title">${esc(c.name)}</div><div class="small muted">${esc(emailOf[c.id]?.email || 'no login')} · ${c.postCount || 0}/${MAX_POSTS_PER_CHEF} posts</div></div>
       ${c.blocked ? '<span class="badge bad">Blocked</span>' : '<span class="badge ok">Active</span>'}<span class="muted">›</span></a>`).join('')}</section>`
       : '<section class="glass card empty"><div class="sym">✦</div><p>Add your first chef. They\'ll get an email invite to set up their profile.</p></section>'}`);
@@ -474,7 +477,7 @@ async function viewChefAdmin(id) {
       <div class="flex between wrap-gap"><span class="small">Login: <b>${esc(inv?.email || 'none')}</b>${inv?.invitedAt ? ` · invited ${timeAgo(inv.invitedAt)}` : ''}</span>${inv ? '<button class="btn xs ghost" id="resend">Resend invite</button>' : ''}</div>
     </section>
     <div class="label" style="margin-top:22px">Posts · ${posts.length}/${MAX_POSTS_PER_CHEF}</div>
-    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.thumbUrl || p.imageUrl)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
+    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img class="ph" src="${esc(imgMeta(p.thumbUrl || p.imageUrl).src)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
       ${p.hidden ? '<span class="badge bad tile-badge">Hidden</span>' : ''}
       <div class="tile-actions"><button class="btn xs ${p.hidden ? 'white' : 'glassy'}" data-hide="${esc(p.id)}">${p.hidden ? 'Unhide' : 'Hide'}</button></div></div>`).join('')}</div>`
       : '<section class="glass card empty"><p class="muted small">No posts yet.</p></section>'}
@@ -487,7 +490,7 @@ async function viewChefAdmin(id) {
   };
   $('#resend')?.addEventListener('click', async () => { try { await store.sendInvite(inv.email); toast(isDemo ? 'Demo mode: no email sent' : 'Invite sent again'); } catch (err) { toast(err.message, { bad: true }); } });
   $$('[data-hide]').forEach((b) => (b.onclick = async () => { const p = posts.find((x) => x.id === b.dataset.hide); await store.updatePost(id, p.id, { hidden: !p.hidden }); toast(p.hidden ? 'Post visible again' : 'Post hidden from public'); viewChefAdmin(id); }));
-  $$('[data-view]').forEach((im) => (im.onclick = () => { const p = posts.find((x) => x.id === im.dataset.view); lightbox(p.imageUrl, p.caption); }));
+  $$('[data-view]').forEach((im) => (im.onclick = () => { const p = posts.find((x) => x.id === im.dataset.view); lightbox(p.imageUrl, p.caption, p.thumbUrl); }));
   profileForm($('#pf'), chef, async (patch) => { await store.saveChef({ id, ...patch }); toast('Profile saved'); });
   $('#del-chef').onclick = async () => {
     const evs = (await store.listEvents({ all: true })).filter((e) => e.chefId === id || (e.batches || []).some((b) => b.chefId === id));
@@ -545,7 +548,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016130742')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016131307')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }
