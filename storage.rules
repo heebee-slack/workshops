@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in ['gavish@heebeecoffee.com'];
+    }
+    function okImage() {
+      return request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
+
+    match /events/{file} {
+      allow read: if true;
+      allow create, update: if isAdmin() && okImage();
+      allow delete: if isAdmin();
+    }
+    match /settings/{file} {
+      allow read: if true;
+      allow create, update: if isAdmin() && okImage();
+      allow delete: if isAdmin();
+    }
+    // Admin-managed chef photos
+    match /chefs/{chefId}/{file} {
+      allow read: if true;
+      allow create, update: if isAdmin() && okImage();
+      allow delete: if isAdmin();
+    }
+    // Chef's own uploads: the folder name must be their verified login email
+    match /chefmedia/{email}/{file} {
+      allow read: if true;
+      allow create, update: if request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == email && okImage();
+      allow delete: if isAdmin() || (request.auth != null && request.auth.token.email.lower() == email);
+    }
+  }
+}

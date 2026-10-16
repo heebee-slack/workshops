@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Keep this list in sync with ADMIN_EMAILS in js/config.js
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in ['gavish@heebeecoffee.com'];
+    }
+    function inviteFor(email) { return /databases/$(database)/documents/chefInvites/$(email); }
+    // Chefs sign in through the emailed invite link, which verifies their email.
+    function isChef(chefId) {
+      return request.auth != null && request.auth.token.email_verified == true
+        && exists(inviteFor(request.auth.token.email))
+        && get(inviteFor(request.auth.token.email)).data.chefId == chefId;
+    }
+    function chefDoc(chefId) { return /databases/$(database)/documents/chefs/$(chefId); }
+    function okStr(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /events/{id} {
+      allow read: if resource == null || resource.data.status == 'published' || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /chefs/{chefId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isChef(chefId) && resource.data.blocked != true
+        && request.resource.data.blocked == resource.data.blocked
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'title', 'photoUrl', 'coverUrl', 'bio', 'experience', 'achievements', 'instagram', 'postCount', 'updatedAt'])
+        && request.resource.data.postCount >= 0 && request.resource.data.postCount <= 21
+      );
+
+      match /posts/{postId} {
+        allow read: if resource.data.hidden == false || isAdmin() || isChef(chefId);
+        // New post must bump the chef's postCount by exactly 1 in the same batch, max 21.
+        allow create: if isChef(chefId)
+          && get(chefDoc(chefId)).data.blocked != true
+          && request.resource.data.hidden == false
+          && getAfter(chefDoc(chefId)).data.postCount == get(chefDoc(chefId)).data.postCount + 1
+          && getAfter(chefDoc(chefId)).data.postCount <= 21;
+        allow update: if isAdmin() || (isChef(chefId) && get(chefDoc(chefId)).data.blocked != true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption']));
+        allow delete: if isAdmin() || isChef(chefId);
+      }
+    }
+
+    match /chefInvites/{email} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.token.email == email);
+      allow write: if isAdmin();
+    }
+
+    // Public can only add themselves to a waitlist. Nobody but admin can read bookings.
+    match /bookings/{id} {
+      allow create: if request.resource.data.status == 'waitlist'
+        && request.resource.data.spot == null
+        && request.resource.data.keys().hasOnly(['eventId', 'eventTitle', 'batchId', 'batchDate', 'batchTime', 'name', 'phone', 'whatsapp', 'email', 'agreedAt', 'ref', 'status', 'spot', 'createdAt'])
+        && okStr(request.resource.data.name, 80) && okStr(request.resource.data.phone, 16)
+        && okStr(request.resource.data.whatsapp, 16) && okStr(request.resource.data.email, 120)
+        && request.resource.data.agreedAt is number
+        && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId));
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /updates/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['eventId', 'eventTitle', 'name', 'whatsapp', 'createdAt', 'notifiedAt'])
+        && okStr(request.resource.data.name, 80) && okStr(request.resource.data.whatsapp, 16);
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
