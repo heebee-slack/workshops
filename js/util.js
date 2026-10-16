@@ -165,4 +165,4 @@ export const ICON = {
   back: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
   share: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6"/></svg>',
 };
-export const loading = () => `<div class="empty"><div class="sym">✦</div><p class="muted small">Loading…</p></div>`;
+export const loading = () => `<div class="empty" style="padding-top:30vh"><div class="sym spin">✦</div></div>`;

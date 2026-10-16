@@ -1,5 +1,5 @@
 import { store, isDemo } from './store.js';
-import { state, render } from './app.js';
+import { state, render, showLoading } from './app.js';
 import { MAX_POSTS_PER_CHEF } from './config.js';
 import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox } from './util.js';
 
@@ -8,8 +8,9 @@ const head = (right = '') => `<div class="topbar"><a class="brand" href="#/" sty
 let authHooked = false;
 export async function routeChef() {
   if (!authHooked) { authHooked = true; window.addEventListener('hbw-auth', () => { if (location.hash.startsWith('#/chef')) routeChef(); }); }
+  if (!state.authReady) return showLoading();
   if (!state.user) return viewLogin();
-  render(`<div class="wrap">${loading()}</div>`);
+  showLoading();
   const chefId = await store.getChefIdForEmail(state.user.email).catch(() => null);
   if (!chefId) {
     return render(`<div class="wrap">${head()}<section class="glass card empty" style="margin-top:40px"><div class="sym">◇</div>

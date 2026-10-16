@@ -7,7 +7,7 @@ import {
 } from './util.js';
 
 const app = $('#app');
-export const state = { settings: null, user: null };
+export const state = { settings: null, user: null, navId: 0, soft: false };
 
 // ---------- theme ----------
 export function toggleTheme() {
@@ -19,17 +19,31 @@ export function toggleTheme() {
 const themeBtn = () => `<button class="icon-btn glass" data-theme-toggle aria-label="Switch light or dark">◐</button>`;
 export function wireCommon(root = app) { $$('[data-theme-toggle]', root).forEach((b) => (b.onclick = toggleTheme)); }
 
+let loaderTimer;
 export function render(html) {
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js to go live</div>` : '') + `<div class="view-enter">${html}</div>`;
+  clearTimeout(loaderTimer);
+  document.body.classList.remove('is-loading');
+  const y = window.scrollY;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
-  window.scrollTo(0, 0);
+  window.scrollTo(0, state.soft ? y : 0);
 }
 
-const img = (src, cls = '', alt = '') => (src ? `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" loading="lazy">` : '');
+// Keep the current screen and show a thin progress bar; only an empty app gets the full loader.
+export function showLoading() {
+  clearTimeout(loaderTimer);
+  if (!app.firstElementChild) { app.innerHTML = `<div class="wrap">${loading()}</div>`; return; }
+  loaderTimer = setTimeout(() => document.body.classList.add('is-loading'), 120);
+}
+
+// True while the user is still on the screen this view started rendering for.
+export function navGuard() { const id = state.navId; return () => id === state.navId; }
+
+const img = (src, cls = '', alt = '', eager = false) => (src ? `<img class="${cls}" src="${esc(src)}" alt="${esc(alt)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">` : '');
 const chefMap = async () => Object.fromEntries((await store.listChefs()).map((c) => [c.id, c]));
 
 // ---------- home feed ----------
-function eventCard(ev, chef, { featured = false } = {}) {
+function eventCard(ev, chef, { featured = false, eager = false } = {}) {
   const past = isPast(ev);
   const nb = nextBatch(ev);
   const left = totalSeatsLeft(ev);
@@ -41,7 +55,7 @@ function eventCard(ev, chef, { featured = false } = {}) {
     ? `<button class="btn white sm" data-updates="${esc(ev.id)}">Keep me updated</button>`
     : `<span class="btn white sm">${left ? 'Join waitlist' : 'View batches'}</span>`;
   return `<a class="ev-card ${featured ? 'featured' : 'compact'} ${past ? 'past' : ''}" href="#/e/${esc(ev.id)}">
-    ${img(ev.imageUrl, 'bgimg', ev.title)}
+    ${img(ev.imageUrl, 'bgimg', ev.title, eager)}
     <div class="top">${top}</div>
     <div class="panel glass-photo">
       ${featured ? '<div class="feature-tag">Next up at Heebee</div>' : ''}
@@ -53,8 +67,9 @@ function eventCard(ev, chef, { featured = false } = {}) {
 }
 
 async function viewHome() {
-  render(`<div class="wrap">${loading()}</div>`);
+  showLoading(); const live = navGuard();
   const [events, chefs] = await Promise.all([store.listEvents(), chefMap()]);
+  if (!live()) return;
   const upcoming = events.filter((e) => !isPast(e)).sort((a, b) => (nextBatch(a)?.date || '').localeCompare(nextBatch(b)?.date || '') || (nextBatch(a)?.time || '').localeCompare(nextBatch(b)?.time || ''));
   const past = events.filter(isPast).sort((a, b) => (sortBatches(b.batches).at(-1)?.date || '').localeCompare(sortBatches(a.batches).at(-1)?.date || ''));
   const featured = upcoming.find((e) => e.featured) || upcoming[0];
@@ -63,7 +78,7 @@ async function viewHome() {
   render(`<div class="wrap">
     <div class="topbar"><span class="brand">Heebee</span>${themeBtn()}</div>
     <header class="hero-head"><div class="eyebrow">Learn · Cook · Taste</div><h1 class="h-display">Workshops</h1></header>
-    ${featured ? eventCard(featured, chefs[featured.chefId], { featured: true }) : `<div class="glass card empty"><div class="sym">✦</div><p>New workshops are being planned.</p><p class="muted small">Check back soon.</p></div>`}
+    ${featured ? eventCard(featured, chefs[featured.chefId], { featured: true, eager: true }) : `<div class="glass card empty"><div class="sym">✦</div><p>New workshops are being planned.</p><p class="muted small">Check back soon.</p></div>`}
     ${rest.length ? `<div class="label" style="margin-top:28px">Coming soon</div><div class="feed-grid">${rest.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
     ${past.length ? `<div class="label" style="margin-top:28px">Past workshops</div><div class="feed-grid">${past.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
     <footer class="foot">
@@ -72,14 +87,19 @@ async function viewHome() {
     </footer>
   </div>`);
   $$('[data-updates]').forEach((b) => (b.onclick = (e) => { e.preventDefault(); const ev = events.find((x) => x.id === b.dataset.updates); openUpdatesSheet(ev); }));
+  // Warm the next screens: chef galleries and hero photos, while the phone is idle.
+  (window.requestIdleCallback || setTimeout)(() => {
+    for (const id of new Set(upcoming.map((e) => e.chefId).filter(Boolean))) store.listPosts(id).catch(() => {});
+    upcoming.slice(0, 4).forEach((e) => { const c = chefs[e.chefId]; if (c?.photoUrl) new Image().src = c.photoUrl; });
+  });
 }
 
 // ---------- event detail ----------
 async function viewEvent(id, preselect) {
-  render(`<div class="wrap">${loading()}</div>`);
-  const ev = await store.getEvent(id);
+  showLoading(); const live = navGuard();
+  const [ev, chefs] = await Promise.all([store.getEvent(id), chefMap()]);
+  if (!live()) return;
   if (!ev || ev.status !== 'published' && !(state.user && state.isAdmin)) return viewNotFound('This workshop isn\'t available.');
-  const chefs = await chefMap();
   const chef = chefs[ev.chefId];
   const past = isPast(ev);
   const ups = upcomingBatches(ev);
@@ -104,7 +124,7 @@ async function viewEvent(id, preselect) {
 
   const v = ev.venue || {};
   render(`
-    <div class="detail-hero">${img(ev.imageUrl, '', ev.title)}
+    <div class="detail-hero">${img(ev.imageUrl, '', ev.title, true)}
       <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" aria-label="Back">${ICON.back}</a><div class="flex">${themeBtn().replace('glass', 'glass-photo')}<button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div></div>
     </div>
     <div class="wrap detail-body">
@@ -273,17 +293,17 @@ function openUpdatesSheet(ev) {
 
 // ---------- chef profile ----------
 async function viewChef(id) {
-  render(`<div class="wrap">${loading()}</div>`);
-  const chef = await store.getChef(id);
+  showLoading(); const live = navGuard();
+  const [chef, posts, events] = await Promise.all([store.getChef(id), store.listPosts(id), store.listEvents()]);
+  if (!live()) return;
   if (!chef || chef.blocked) return viewNotFound('This profile isn\'t available right now.');
-  const [posts, events] = await Promise.all([store.listPosts(id), store.listEvents()]);
   const mine = events.filter((e) => e.chefId === id || (e.batches || []).some((b) => b.chefId === id));
   const upcoming = mine.filter((e) => !isPast(e));
   const past = mine.filter(isPast);
   const cover = chef.coverUrl || chef.photoUrl;
   const mini = (e) => `<a class="mini-ev" href="#/e/${esc(e.id)}">${img(e.imageUrl, '', e.title)}<div><div style="font-weight:700">${esc(e.title)}</div><div class="muted small">${esc(dateRange(e))}${isPast(e) ? '' : ' · ' + fmtPrice(minPrice(e))}</div></div></a>`;
   render(`
-    <div class="chef-hero">${cover ? img(cover, 'cover', chef.name) : ''}
+    <div class="chef-hero">${cover ? img(cover, 'cover', chef.name, true) : ''}
       <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" data-back aria-label="Back">${ICON.back}</a><button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div>
       <div class="panel glass-photo">${chef.photoUrl ? img(chef.photoUrl, 'avatar lg', chef.name) : ''}<div><div class="feature-tag">Chef at Heebee</div><h1>${esc(chef.name)}</h1><div class="small" style="opacity:.9">${esc(chef.title || '')}</div></div></div>
     </div>
@@ -329,15 +349,18 @@ export function viewNotFound(msg = 'Page not found') {
 
 // ---------- router ----------
 async function route() {
-  document.querySelectorAll('.sheet-backdrop, .lightbox').forEach((n) => n.remove());
-  document.body.classList.remove('modal-open');
+  state.navId++;
+  if (!state.soft) {
+    document.querySelectorAll('.sheet-backdrop, .lightbox').forEach((n) => n.remove());
+    document.body.classList.remove('modal-open');
+  }
   const raw = location.hash.slice(1) || '/';
   const [path, qs] = raw.split('?');
   const params = new URLSearchParams(qs || '');
   const parts = path.split('/').filter(Boolean);
   try {
     if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js'); return m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js'); return await m.routeAdmin(parts.slice(1), params); }
     if (parts[0] === 'chef') { const m = await import('./chef.js'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
@@ -345,20 +368,42 @@ async function route() {
     if (!parts.length) return await viewHome();
     viewNotFound();
   } catch (e) {
+    if (e.stale) return;
     console.error(e);
     render(`<div class="wrap"><div class="glass card empty" style="margin-top:40px"><div class="sym">◇</div><p>Something went wrong loading this page.</p><p class="muted small">${esc(e.message)}</p><button class="btn sm" onclick="location.reload()">Try again</button></div></div>`);
   }
 }
 
+// Background data refresh found something new: quietly redraw the current screen,
+// unless the user is typing, has a sheet open, or is on an editing screen.
+function canSoftRefresh() {
+  if (document.querySelector('.sheet-backdrop, .lightbox')) return false;
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+  return !/^#\/(admin\/(event|settings|chefs\/)|chef)/.test(location.hash);
+}
+window.addEventListener('hbw-data', () => {
+  if (!canSoftRefresh()) return;
+  state.soft = true;
+  route().finally(() => (state.soft = false));
+});
+
+const needsAuth = () => /^#\/(admin|chef)/.test(location.hash) || new URLSearchParams(location.search).get('invite');
+
 async function boot() {
+  // Public screens don't wait for login; admin/chef screens re-route once auth is known.
   state.settings = await getSettings().catch(() => ({ ...DEFAULT_SETTINGS }));
   store.onAuth(async (u) => {
     state.user = u;
     const { ADMIN_EMAILS } = await import('./config.js');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
-    if (state.authReady) window.dispatchEvent(new Event('hbw-auth'));
-    else { state.authReady = true; route(); }
+    const first = !state.authReady;
+    state.authReady = true;
+    if (first) { if (needsAuth()) route(); }
+    else window.dispatchEvent(new Event('hbw-auth'));
   });
   window.addEventListener('hashchange', route);
+  if (!needsAuth()) route(); else showLoading();
+  if ('serviceWorker' in navigator && !/^(localhost|127\.)/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();

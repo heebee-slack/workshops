@@ -106,7 +106,7 @@ export default {
     const chef = data(await getDoc(doc(fs, 'chefs', chefId)));
     if ((chef.postCount || 0) >= MAX_POSTS_PER_CHEF) throw new Error(`You can have up to ${MAX_POSTS_PER_CHEF} posts. Delete one to add another.`);
     const pid = uid(); const path = chefPath(chefId, `${pid}.jpg`);
-    const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg' });
+    const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' });
     const imageUrl = await getDownloadURL(r);
     const b = writeBatch(fs);
     b.set(doc(fs, 'chefs', chefId, 'posts', pid), { imageUrl, storagePath: path, caption: caption || '', hidden: false, createdAt: Date.now() });
@@ -139,7 +139,7 @@ export default {
   deleteUpdate: guard((id) => deleteDoc(doc(fs, 'updates', id))),
 
   // ---- files ----
-  uploadChef: guard(async (chefId, blob) => { const r = sref(st, chefPath(chefId, `profile-${uid(6)}.jpg`)); await uploadBytes(r, blob, { contentType: 'image/jpeg' }); return getDownloadURL(r); }),
-  upload: guard(async (path, blob) => { const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg' }); return getDownloadURL(r); }),
+  uploadChef: guard(async (chefId, blob) => { const r = sref(st, chefPath(chefId, `profile-${uid(6)}.jpg`)); await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' }); return getDownloadURL(r); }),
+  upload: guard(async (path, blob) => { const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' }); return getDownloadURL(r); }),
   removeFile: async (path) => { try { await deleteObject(sref(st, path)); } catch {} },
 };

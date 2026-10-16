@@ -6,7 +6,7 @@
   --text: #1d1d1f;
   --text2: #424245;
   --text3: #86868b;
-  --glass: rgba(255,255,255,0.62);
+  --glass: rgba(255,255,255,0.74);
   --glass-strong: rgba(255,255,255,0.82);
   --glass-border: rgba(255,255,255,0.85);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(255,255,255,0.25);
@@ -35,7 +35,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0a0a0f; --bg2: #111118; --text: #f5f5f7; --text2: #d2d2d7; --text3: #8e8e93;
-    --glass: rgba(34,34,42,0.55); --glass-strong: rgba(28,28,34,0.82); --glass-border: rgba(255,255,255,0.12);
+    --glass: rgba(30,30,38,0.78); --glass-strong: rgba(28,28,34,0.82); --glass-border: rgba(255,255,255,0.12);
     --glass-hi: inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(255,255,255,0.03);
     --hair: rgba(255,255,255,0.09); --shadow: 0 4px 24px rgba(0,0,0,0.35); --shadow2: 0 12px 44px rgba(0,0,0,0.55);
     --gold: #E2C48A; --gold-text: #E2C48A; --gold-soft: rgba(226,196,138,0.14);
@@ -47,7 +47,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #0a0a0f; --bg2: #111118; --text: #f5f5f7; --text2: #d2d2d7; --text3: #8e8e93;
-  --glass: rgba(34,34,42,0.55); --glass-strong: rgba(28,28,34,0.82); --glass-border: rgba(255,255,255,0.12);
+  --glass: rgba(30,30,38,0.78); --glass-strong: rgba(28,28,34,0.82); --glass-border: rgba(255,255,255,0.12);
   --glass-hi: inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 rgba(255,255,255,0.03);
   --hair: rgba(255,255,255,0.09); --shadow: 0 4px 24px rgba(0,0,0,0.35); --shadow2: 0 12px 44px rgba(0,0,0,0.55);
   --gold: #E2C48A; --gold-text: #E2C48A; --gold-soft: rgba(226,196,138,0.14);
@@ -78,17 +78,16 @@ input, select, textarea { font: inherit; color: inherit; }
 ::-webkit-scrollbar { width: 3px; height: 3px; } ::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
 
 .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.bg-orb { position: absolute; border-radius: 50%; filter: blur(90px); animation: orbDrift ease-in-out infinite alternate; }
+.bg-orb { position: absolute; border-radius: 50%; }
 .orb1 { width: 500px; height: 500px; top: -80px; right: -120px; background: radial-gradient(circle, var(--orb1), transparent 70%); opacity: .55; animation-duration: 14s; }
 .orb2 { width: 420px; height: 420px; bottom: -80px; left: -100px; background: radial-gradient(circle, var(--orb2), transparent 70%); opacity: .45; animation-duration: 18s; animation-delay: 5s; }
 .orb3 { width: 300px; height: 300px; top: 45%; left: 45%; background: radial-gradient(circle, var(--orb3), transparent 70%); opacity: .4; animation-duration: 22s; animation-delay: 10s; }
-@keyframes orbDrift { 0% { transform: translate(0,0); } 100% { transform: translate(28px,18px); } }
 
 .app-root { position: relative; z-index: 10; min-height: 100vh; }
 .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 120px; }
 .wrap.wide { max-width: 980px; }
-.view-enter { animation: panelReveal 0.5s var(--ease) both; }
-@keyframes panelReveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.view-enter { animation: panelReveal 0.22s var(--ease) both; }
+@keyframes panelReveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ---------- type ---------- */
 .eyebrow { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 4px; text-transform: uppercase; color: var(--text3); }
@@ -107,13 +106,15 @@ input, select, textarea { font: inherit; color: inherit; }
 /* ---------- glass ---------- */
 .glass {
   background: var(--glass);
-  -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px);
   border: 1px solid var(--glass-border); border-radius: var(--r2);
   box-shadow: var(--shadow), var(--glass-hi);
 }
+.detail-title, .bottom-bar .inner {
+  -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px);
+}
 .glass-photo {
   background: rgba(255,255,255,0.2);
-  -webkit-backdrop-filter: saturate(170%) blur(18px); backdrop-filter: saturate(170%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px);
   border: 1px solid rgba(255,255,255,0.38);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(255,255,255,0.12), 0 8px 30px rgba(0,0,0,0.18);
   color: #fff;
@@ -171,7 +172,7 @@ input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- event cards ---------- */
 .ev-card { position: relative; display: block; text-decoration: none; color: #fff; border-radius: var(--r3); overflow: hidden; margin-bottom: 16px; background: #3b2a1e; box-shadow: var(--shadow2); isolation: isolate; }
-.ev-card .bgimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; transition: transform 0.7s var(--ease); }
+.ev-card .bgimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; transition: transform 0.7s var(--ease); background: #3b2a1e; }
 .ev-card:hover .bgimg { transform: scale(1.03); }
 .ev-card::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.35) 100%); }
 .ev-card.featured { height: min(520px, 118vw); }
@@ -403,3 +404,14 @@ input, select, textarea { font: inherit; color: inherit; }
   .feed-grid .ev-card { margin-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- loading ---------- */
+.empty .sym.spin, .loading-sym { display: inline-block; animation: spin 1.1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+body::before {
+  content: ''; position: fixed; top: 0; left: 0; height: 3px; width: 100%; z-index: 300; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent); background-size: 50% 100%; background-repeat: no-repeat;
+  opacity: 0; transition: opacity 0.2s var(--ease);
+}
+body.is-loading::before { opacity: 1; animation: bar 0.9s linear infinite; }
+@keyframes bar { from { background-position: -50% 0; } to { background-position: 150% 0; } }

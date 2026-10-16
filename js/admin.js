@@ -1,5 +1,7 @@
 import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js';
-import { state, render, toggleTheme } from './app.js';
+import { state, render, toggleTheme, showLoading } from './app.js';
+
+let adminNav = -1;
 import { profileForm } from './chef.js';
 import { TEMPLATE_VARS } from './defaults.js';
 import { MAX_POSTS_PER_CHEF } from './config.js';
@@ -12,6 +14,7 @@ import {
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
 function shell(tab, body, { wide = true } = {}) {
+  if (adminNav !== state.navId) throw Object.assign(new Error('stale view'), { stale: true });
   render(`<div class="wrap ${wide ? 'wide' : ''}">
     <div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a>
       <div class="flex"><span class="tiny muted">${esc(state.user?.email || '')}</span><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button><button class="btn xs ghost" data-signout>Sign out</button></div></div>
@@ -24,6 +27,8 @@ function shell(tab, body, { wide = true } = {}) {
 let authHooked = false;
 export async function routeAdmin(parts, params) {
   if (!authHooked) { authHooked = true; window.addEventListener('hbw-auth', () => { if (location.hash.startsWith('#/admin')) routeAdmin(location.hash.slice(2).split('?')[0].split('/').slice(1), new URLSearchParams(location.hash.split('?')[1] || '')); }); }
+  adminNav = state.navId;
+  if (!state.authReady) return showLoading();
   if (!state.user) return viewLogin();
   if (!state.isAdmin) return viewNotAdmin();
   state.settings = await getSettings();
@@ -105,7 +110,7 @@ export const uploadBox = (url, label = 'Upload photo', h = 180) => `<div class="
 
 // ---------- events list ----------
 async function viewEvents() {
-  shell('events', loading());
+  showLoading();
   const [events, bookings] = await Promise.all([store.listEvents({ all: true }), store.listBookings()]);
   const sorted = events.sort((a, b) => (isPast(a) - isPast(b)) || (sortBatches(a.batches)[0]?.date || '').localeCompare(sortBatches(b.batches)[0]?.date || ''));
   const row = (ev) => {
@@ -127,7 +132,7 @@ async function viewEvents() {
 
 // ---------- event editor ----------
 async function viewEventEditor(id) {
-  shell('events', loading());
+  showLoading();
   const chefs = await store.listChefs();
   const ev = id ? await store.getEvent(id) : {
     title: '', tagline: '', description: '', includes: [], imageUrl: '', chefId: chefs[0]?.id || '', durationMins: 180, price: 0,
@@ -287,7 +292,7 @@ async function viewEventEditor(id) {
 
 // ---------- bookings ----------
 async function viewBookings(eventId, params) {
-  shell('bookings', loading());
+  showLoading();
   const events = (await store.listEvents({ all: true })).sort((a, b) => (isPast(a) - isPast(b)) || (sortBatches(a.batches)[0]?.date || '').localeCompare(sortBatches(b.batches)[0]?.date || ''));
   if (!events.length) return shell('bookings', '<section class="glass card empty"><p>No workshops yet.</p><a class="btn sm" href="#/admin/event/new">Create one</a></section>');
   const ev = events.find((e) => e.id === eventId) || events[0];
@@ -421,7 +426,7 @@ function exportCsv(ev, bookings) {
 
 // ---------- chefs ----------
 async function viewChefs() {
-  shell('chefs', loading());
+  showLoading();
   const [chefs, invites] = await Promise.all([store.listChefs(), store.listInvites()]);
   const emailOf = Object.fromEntries(invites.map((i) => [i.chefId, i]));
   shell('chefs', `
@@ -456,7 +461,7 @@ async function viewChefs() {
 }
 
 async function viewChefAdmin(id) {
-  shell('chefs', loading());
+  showLoading();
   const [chef, posts, invites] = await Promise.all([store.getChef(id), store.listPosts(id, { all: true }), store.listInvites()]);
   if (!chef) return shell('chefs', '<section class="glass card empty"><p>Chef not found.</p></section>');
   const inv = invites.find((i) => i.chefId === id);
@@ -494,7 +499,7 @@ async function viewChefAdmin(id) {
 
 // ---------- stay updated ----------
 async function viewUpdates() {
-  shell('updates', loading());
+  showLoading();
   const [ups, events] = await Promise.all([store.listUpdates(), store.listEvents({ all: true })]);
   const evById = Object.fromEntries(events.map((e) => [e.id, e]));
   const groups = {};

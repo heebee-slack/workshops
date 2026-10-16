@@ -16,6 +16,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;300;400;600;700&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<!-- Fetch every module in parallel instead of one import at a time -->
+<link rel="modulepreload" href="js/app.js">
+<link rel="modulepreload" href="js/store.js">
+<link rel="modulepreload" href="js/util.js">
+<link rel="modulepreload" href="js/defaults.js">
+<link rel="modulepreload" href="js/config.js">
+<link rel="modulepreload" href="js/store-firebase.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js">
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
 <script>
   try { const t = localStorage.getItem('hbw-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
