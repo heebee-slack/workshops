@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES } from './config.js?v=20261016123504';
+import { MAX_UPLOAD_BYTES } from './config.js?v=20261016124302';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -74,7 +74,7 @@ export const siteUrl = () => location.origin + location.pathname;
 // ---------- images ----------
 // Downscale big phone photos so every upload lands well under the 5 MB cap.
 export async function resizeImage(file, { maxDim = 2048, quality = 0.85, maxBytes = MAX_UPLOAD_BYTES } = {}) {
-  if (!file.type.startsWith('image/')) throw new Error('Choose an image file');
+  if (!(file.type || 'image/').startsWith('image/')) throw new Error('Choose an image file');
   let bitmap;
   try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
   catch { bitmap = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('That image could not be read. Try a JPG or PNG.')); i.src = URL.createObjectURL(file); }); }

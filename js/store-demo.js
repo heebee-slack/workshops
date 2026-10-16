@@ -1,6 +1,6 @@
 // Demo backend: everything lives in this browser's localStorage. Used until Firebase keys are added.
-import { ADMIN_EMAILS, MAX_POSTS_PER_CHEF } from './config.js?v=20261016123504';
-import { uid, makeRef, blobToDataUrl } from './util.js?v=20261016123504';
+import { ADMIN_EMAILS, MAX_POSTS_PER_CHEF } from './config.js?v=20261016124302';
+import { uid, makeRef, blobToDataUrl } from './util.js?v=20261016124302';
 
 const KEY = 'hbw-demo-v1';
 const USER_KEY = 'hbw-demo-user';
@@ -158,11 +158,12 @@ export default {
   async listPosts(chefId, { all = false } = {}) {
     return wait((load().posts[chefId] || []).filter((p) => all || !p.hidden).sort((a, b) => b.createdAt - a.createdAt));
   },
-  async addPost(chefId, blob, caption) {
+  async addPost(chefId, blob, caption, thumb) {
     load(); const list = db.posts[chefId] || (db.posts[chefId] = []);
     if (list.length >= MAX_POSTS_PER_CHEF) throw new Error(`You can have up to ${MAX_POSTS_PER_CHEF} posts. Delete one to add another.`);
     const imageUrl = await blobToDataUrl(blob);
-    list.push({ id: uid(), imageUrl, caption, hidden: false, createdAt: Date.now() });
+    const thumbUrl = thumb ? await blobToDataUrl(thumb) : '';
+    list.push({ id: uid(), imageUrl, thumbUrl, caption, hidden: false, createdAt: Date.now() });
     db.chefs[chefId].postCount = list.length; save();
   },
   async updatePost(chefId, pid, patch) { load(); const p = (db.posts[chefId] || []).find((x) => x.id === pid); if (p) { Object.assign(p, patch); save(); } },

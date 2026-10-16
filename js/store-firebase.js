@@ -8,8 +8,8 @@ import {
   getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, writeBatch, increment, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getStorage, ref as sref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
-import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID, MAX_POSTS_PER_CHEF, ADMIN_EMAILS } from './config.js?v=20261016123504';
-import { uid, makeRef, siteUrl } from './util.js?v=20261016123504';
+import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID, MAX_POSTS_PER_CHEF, ADMIN_EMAILS } from './config.js?v=20261016124302';
+import { uid, makeRef, siteUrl } from './util.js?v=20261016124302';
 
 const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
@@ -102,14 +102,16 @@ export default {
     const list = await all(everything ? col : query(col, where('hidden', '==', false)));
     return list.sort((a, b) => b.createdAt - a.createdAt);
   }),
-  addPost: guard(async (chefId, blob, caption) => {
+  addPost: guard(async (chefId, blob, caption, thumb) => {
     const chef = data(await getDoc(doc(fs, 'chefs', chefId)));
     if ((chef.postCount || 0) >= MAX_POSTS_PER_CHEF) throw new Error(`You can have up to ${MAX_POSTS_PER_CHEF} posts. Delete one to add another.`);
     const pid = uid(); const path = chefPath(chefId, `${pid}.jpg`);
     const r = sref(st, path); await uploadBytes(r, blob, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' });
     const imageUrl = await getDownloadURL(r);
+    let thumbUrl = '', thumbPath = '';
+    if (thumb) { thumbPath = chefPath(chefId, `${pid}_t.jpg`); const tr = sref(st, thumbPath); await uploadBytes(tr, thumb, { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' }); thumbUrl = await getDownloadURL(tr); }
     const b = writeBatch(fs);
-    b.set(doc(fs, 'chefs', chefId, 'posts', pid), { imageUrl, storagePath: path, caption: caption || '', hidden: false, createdAt: Date.now() });
+    b.set(doc(fs, 'chefs', chefId, 'posts', pid), { imageUrl, thumbUrl, storagePath: path, thumbPath, caption: caption || '', hidden: false, createdAt: Date.now() });
     b.update(doc(fs, 'chefs', chefId), { postCount: increment(1) });
     await b.commit();
   }),
@@ -120,6 +122,7 @@ export default {
     b.update(doc(fs, 'chefs', chefId), { postCount: increment(-1) });
     await b.commit();
     if (post.storagePath) deleteObject(sref(st, post.storagePath)).catch(() => {});
+    if (post.thumbPath) deleteObject(sref(st, post.thumbPath)).catch(() => {});
   }),
 
   // ---- bookings (public can only create; admin reads) ----

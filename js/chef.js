@@ -1,7 +1,7 @@
-import { store, isDemo } from './store.js?v=20261016123504';
-import { state, render, showLoading } from './app.js?v=20261016123504';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016123504';
-import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox } from './util.js?v=20261016123504';
+import { store, isDemo } from './store.js?v=20261016124302';
+import { state, render, showLoading } from './app.js?v=20261016124302';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016124302';
+import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox } from './util.js?v=20261016124302';
 
 const head = (right = '') => `<div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a><div class="flex"><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button>${right}</div></div>`;
 
@@ -93,7 +93,7 @@ async function viewDashboard(chef) {
     <div class="flex between" style="margin:22px 0 10px"><div class="label" style="margin:0">Gallery · ${posts.length}/${MAX_POSTS_PER_CHEF}</div>
       <label class="btn sm gold ${full ? 'is-disabled' : ''}" style="position:relative;overflow:hidden">＋ Add photo<input type="file" accept="image/*" id="add-post" style="position:absolute;inset:0;opacity:0;cursor:pointer" ${full ? 'disabled' : ''}></label></div>
     ${full ? `<p class="small muted" style="margin:-4px 0 10px">You've reached ${MAX_POSTS_PER_CHEF} posts. Delete one to add a new photo.</p>` : ''}
-    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.imageUrl)}" alt="" data-view="${esc(p.id)}" style="cursor:zoom-in">
+    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.thumbUrl || p.imageUrl)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
         ${p.hidden ? '<span class="badge bad tile-badge">Hidden by Heebee</span>' : ''}
         <div class="tile-actions"><button class="btn xs glassy" data-edit="${esc(p.id)}" aria-label="Edit caption">✎</button><button class="btn xs glassy" data-del="${esc(p.id)}" aria-label="Delete">✕</button></div></div>`).join('')}</div>`
       : '<section class="glass card empty"><div class="sym">✦</div><p>Share photos of yourself and your dishes.</p><p class="muted small">They appear on your public profile like an Instagram grid.</p></section>'}
@@ -114,8 +114,11 @@ async function viewDashboard(chef) {
   }));
   $('#add-post').onchange = async (e) => {
     const file = e.target.files[0]; e.target.value = ''; if (!file) return;
-    let blob;
-    try { blob = await resizeImage(file, isDemo ? { maxDim: 1000, quality: 0.75 } : { maxDim: 2048 }); } catch (err) { return toast(err.message, { bad: true }); }
+    let blob, thumb;
+    try {
+      blob = await resizeImage(file, isDemo ? { maxDim: 1000, quality: 0.75 } : { maxDim: 1800 });
+      thumb = await resizeImage(blob, { maxDim: 480, quality: 0.78 });
+    } catch (err) { return toast(err.message, { bad: true }); }
     const preview = URL.createObjectURL(blob);
     const s = openSheet(`<div class="sheet-head"><h2>New post</h2><button class="icon-btn glass" data-close aria-label="Close">✕</button></div>
       <img src="${preview}" alt="" style="width:100%;max-height:50vh;object-fit:cover;border-radius:18px;margin-bottom:14px">
@@ -124,7 +127,7 @@ async function viewDashboard(chef) {
       <button class="btn gold block" id="post">Post</button>`);
     $('#post', s.el).onclick = async () => {
       const b = $('#post', s.el); b.disabled = true; b.textContent = 'Posting…';
-      try { await store.addPost(chef.id, blob, $('#cap', s.el).value.trim()); s.close(); toast('Posted'); refresh(); }
+      try { await store.addPost(chef.id, blob, $('#cap', s.el).value.trim(), thumb); s.close(); toast('Posted'); refresh(); }
       catch (err) { b.disabled = false; b.textContent = 'Post'; toast(err.message, { bad: true }); }
     };
   };

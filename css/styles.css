@@ -58,7 +58,7 @@
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; overscroll-behavior-y: none; }
 body {
   background: var(--bg); color: var(--text);
   font-family: var(--sans); font-weight: 400; font-size: 16px; line-height: 1.5;
@@ -66,10 +66,7 @@ body {
   transition: background 0.55s var(--ease), color 0.55s var(--ease);
   overflow-x: hidden;
 }
-body::after {
-  content: ''; position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: var(--noise-op);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-}
+
 body.modal-open { overflow: hidden; }
 img { display: block; max-width: 100%; }
 a { color: inherit; }
@@ -77,11 +74,14 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 input, select, textarea { font: inherit; color: inherit; }
 ::-webkit-scrollbar { width: 3px; height: 3px; } ::-webkit-scrollbar-thumb { background: var(--hair); border-radius: 3px; }
 
-.bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.bg-orb { position: absolute; border-radius: 50%; }
-.orb1 { width: 500px; height: 500px; top: -80px; right: -120px; background: radial-gradient(circle, var(--orb1), transparent 70%); opacity: .55; animation-duration: 14s; }
-.orb2 { width: 420px; height: 420px; bottom: -80px; left: -100px; background: radial-gradient(circle, var(--orb2), transparent 70%); opacity: .45; animation-duration: 18s; animation-delay: 5s; }
-.orb3 { width: 300px; height: 300px; top: 45%; left: 45%; background: radial-gradient(circle, var(--orb3), transparent 70%); opacity: .4; animation-duration: 22s; animation-delay: 10s; }
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(500px 500px at 100% 0%, var(--orb1), transparent 70%),
+    radial-gradient(420px 420px at 0% 100%, var(--orb2), transparent 70%),
+    radial-gradient(300px 300px at 55% 50%, var(--orb3), transparent 70%);
+  opacity: 0.55;
+}
 
 .app-root { position: relative; z-index: 10; min-height: 100vh; }
 .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 120px; }
@@ -113,9 +113,8 @@ input, select, textarea { font: inherit; color: inherit; }
   -webkit-backdrop-filter: saturate(180%) blur(22px); backdrop-filter: saturate(180%) blur(22px);
 }
 .glass-photo {
-  background: rgba(255,255,255,0.2);
-  -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px);
-  border: 1px solid rgba(255,255,255,0.38);
+  background: rgba(40,28,20,0.34);
+  border: 1px solid rgba(255,255,255,0.34);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(255,255,255,0.12), 0 8px 30px rgba(0,0,0,0.18);
   color: #fff;
 }
@@ -173,7 +172,7 @@ input, select, textarea { font: inherit; color: inherit; }
 /* ---------- event cards ---------- */
 .ev-card { position: relative; display: block; text-decoration: none; color: #fff; border-radius: var(--r3); overflow: hidden; margin-bottom: 16px; background: #3b2a1e; box-shadow: var(--shadow2); isolation: isolate; }
 .ev-card .bgimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; transition: transform 0.7s var(--ease); background: #3b2a1e; }
-.ev-card:hover .bgimg { transform: scale(1.03); }
+@media (hover: hover) { .ev-card:hover .bgimg { transform: scale(1.03); } }
 .ev-card::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.35) 100%); }
 .ev-card.featured { height: min(520px, 118vw); }
 .ev-card.compact { height: 300px; }
@@ -415,3 +414,7 @@ body::before {
 }
 body.is-loading::before { opacity: 1; animation: bar 0.9s linear infinite; }
 @keyframes bar { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+
+/* Live frosted blur only on the one big panel per hero — everything else is a tinted fill (cheap to scroll). */
+.ev-card.featured .panel, .chef-hero .panel { background: rgba(255,255,255,0.18); -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px); }
+.ev-card { transform: translateZ(0); }

@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings } from './store.js?v=20261016123504';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016123504';
+import { store, isDemo, getSettings } from './store.js?v=20261016124302';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016124302';
 import {
   esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
   toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON,
-} from './util.js?v=20261016123504';
+} from './util.js?v=20261016124302';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016123504 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016124302 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -314,7 +314,7 @@ async function viewChef(id) {
       ${(chef.achievements || []).length ? `<section class="glass card"><div class="label">Achievements</div><div class="ach">${chef.achievements.map((a) => `<span class="chip">✦ ${esc(a)}</span>`).join('')}</div></section>` : ''}
       ${upcoming.length ? `<section class="glass card"><div class="label">Upcoming workshops</div>${upcoming.map(mini).join('')}</section>` : ''}
       ${past.length ? `<section class="glass card"><div class="label">Past workshops</div>${past.map(mini).join('')}</section>` : ''}
-      ${posts.length ? `<div class="label" style="margin-top:22px">Gallery</div><div class="gallery">${posts.map((p, i) => `<button data-post="${i}" aria-label="Open photo">${img(p.imageUrl, '', p.caption)}</button>`).join('')}</div>` : ''}
+      ${posts.length ? `<div class="label" style="margin-top:22px">Gallery</div><div class="gallery">${posts.map((p, i) => `<button data-post="${i}" aria-label="Open photo">${img(p.thumbUrl || p.imageUrl, '', p.caption)}</button>`).join('')}</div>` : ''}
     </div>`);
   $('[data-share]').onclick = () => shareLink(chef.name, `${chef.name} at Heebee`, `${siteUrl()}#/c/${chef.id}`);
   $('[data-back]').onclick = (e) => { if (history.length > 1) { e.preventDefault(); history.back(); } };
@@ -359,9 +359,9 @@ async function route() {
   const params = new URLSearchParams(qs || '');
   const parts = path.split('/').filter(Boolean);
   try {
-    if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js?v=20261016123504'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016123504'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016123504'); return m.routeChef(parts.slice(1)); }
+    if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js?v=20261016124302'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016124302'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016124302'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -395,7 +395,7 @@ async function boot() {
   state.settings = await getSettings().catch(() => ({ ...DEFAULT_SETTINGS }));
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016123504');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016124302');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;

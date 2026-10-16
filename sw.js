@@ -1,5 +1,5 @@
 // App shell + photos served from the phone; refreshed in the background.
-const VERSION = 'hbw-20261016123504';
+const VERSION = 'hbw-20261016124302';
 const SHELL = `${VERSION}-shell`;
 const PHOTOS = 'hbw-photos';
 

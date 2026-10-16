@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016123504';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016123504';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016124302';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016124302';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016123504';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016123504';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016123504';
+import { profileForm } from './chef.js?v=20261016124302';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016124302';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016124302';
 import {
   esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
   setFieldError, loading, validEmail, todayStr, lightbox, copyText,
-} from './util.js?v=20261016123504';
+} from './util.js?v=20261016124302';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -51,7 +51,7 @@ function viewLogin() {
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016123504.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016124302.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -88,7 +88,7 @@ export function messageVars(bk, ev, extra = {}) {
 }
 const msg = (key, bk, ev) => fillTemplate(state.settings.templates[key], messageVars(bk, ev)).replace(/\n{3,}/g, '\n\n');
 
-async function uploadImage(file, folder, maxDim = 2400) {
+async function uploadImage(file, folder, maxDim = 1600) {
   const blob = await resizeImage(file, { maxDim: isDemo ? 1200 : maxDim, quality: isDemo ? 0.75 : 0.85 });
   return store.upload(`${folder}/${uid()}.jpg`, blob);
 }
@@ -474,7 +474,7 @@ async function viewChefAdmin(id) {
       <div class="flex between wrap-gap"><span class="small">Login: <b>${esc(inv?.email || 'none')}</b>${inv?.invitedAt ? ` · invited ${timeAgo(inv.invitedAt)}` : ''}</span>${inv ? '<button class="btn xs ghost" id="resend">Resend invite</button>' : ''}</div>
     </section>
     <div class="label" style="margin-top:22px">Posts · ${posts.length}/${MAX_POSTS_PER_CHEF}</div>
-    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.imageUrl)}" alt="" data-view="${esc(p.id)}" style="cursor:zoom-in">
+    ${posts.length ? `<div class="gallery">${posts.map((p) => `<div class="tile ${p.hidden ? 'hidden-post' : ''}"><img src="${esc(p.thumbUrl || p.imageUrl)}" alt="" loading="lazy" decoding="async" data-view="${esc(p.id)}" style="cursor:zoom-in">
       ${p.hidden ? '<span class="badge bad tile-badge">Hidden</span>' : ''}
       <div class="tile-actions"><button class="btn xs ${p.hidden ? 'white' : 'glassy'}" data-hide="${esc(p.id)}">${p.hidden ? 'Unhide' : 'Hide'}</button></div></div>`).join('')}</div>`
       : '<section class="glass card empty"><p class="muted small">No posts yet.</p></section>'}
@@ -545,7 +545,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016123504')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016124302')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }
