@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES } from './config.js?v=20261016125301';
+import { MAX_UPLOAD_BYTES } from './config.js?v=20261016130232';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);

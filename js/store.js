@@ -1,11 +1,17 @@
-// Picks the backend (Firebase when js/config.js?v=20261016125301 has keys, otherwise the in-browser demo)
-// and wraps reads in a stale-while-revalidate cache so screens render instantly.
-import { DEMO } from './config.js?v=20261016125301';
-import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016125301';
+// Backends: demo (no Firebase keys) · REST for public screens (tiny, no SDK) · Firebase SDK, loaded
+// only when someone signs in (admin / chef). Reads are wrapped in a stale-while-revalidate cache.
+import { DEMO } from './config.js?v=20261016130232';
+import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016130232';
 
-const backend = DEMO ? await import('./store-demo.js?v=20261016125301') : await import('./store-firebase.js?v=20261016125301');
-const raw = backend.default;
 export const isDemo = DEMO;
+const demo = DEMO ? (await import('./store-demo.js?v=20261016130232')).default : null;
+const rest = DEMO ? null : (await import('./store-rest.js?v=20261016130232')).default;
+let fbPromise = null;
+const loadFb = () => (DEMO ? Promise.resolve(demo) : (fbPromise ||= import('./store-firebase.js?v=20261016130232').then((m) => m.default)));
+let signedIn = false;
+// Signed-in sessions (admin/chef) read through the SDK so drafts and private data follow their permissions.
+const reader = async () => (DEMO ? demo : signedIn ? loadFb() : rest);
+export const hasSession = () => { try { return Object.keys(localStorage).some((k) => k.startsWith('firebase:authUser:')); } catch { return false; } };
 
 // ---------- cache ----------
 // Public data is also kept in localStorage so a cold start paints immediately.
@@ -57,25 +63,39 @@ export function invalidate() {
 }
 
 const READS = {
-  getSettings: () => cached('settings', () => raw.getSettings()),
-  listEvents: ({ all = false } = {}) => cached(all ? 'events:all' : 'events:public', () => raw.listEvents({ all })),
-  getEvent: (id) => cached(`event:${id}`, () => raw.getEvent(id), { fallback: () => findIn('events:public', id) || findIn('events:all', id) }),
-  listChefs: () => cached('chefs', () => raw.listChefs()),
-  getChef: (id) => cached(`chef:${id}`, () => raw.getChef(id), { fallback: () => findIn('chefs', id) }),
-  listPosts: (chefId, { all = false } = {}) => cached(`posts:${all ? 'all' : 'public'}:${chefId}`, () => raw.listPosts(chefId, { all })),
-  listBookings: (eventId) => cached(`bookings:${eventId || '*'}`, () => raw.listBookings(eventId)),
-  listInvites: () => cached('invites', () => raw.listInvites()),
-  listUpdates: () => cached('updates', () => raw.listUpdates()),
+  getSettings: () => cached('settings', async () => (await reader()).getSettings()),
+  listEvents: ({ all = false } = {}) => cached(all ? 'events:all' : 'events:public', async () => (all ? loadFb() : reader()).then((b) => b.listEvents({ all }))),
+  getEvent: (id) => cached(`event:${id}`, async () => (await reader()).getEvent(id), { fallback: () => findIn('events:public', id) || findIn('events:all', id) }),
+  listChefs: () => cached('chefs', async () => (await reader()).listChefs()),
+  getChef: (id) => cached(`chef:${id}`, async () => (await reader()).getChef(id), { fallback: () => findIn('chefs', id) }),
+  listPosts: (chefId, { all = false } = {}) => cached(`posts:${all ? 'all' : 'public'}:${chefId}`, async () => (all ? loadFb() : reader()).then((b) => b.listPosts(chefId, { all }))),
+  listBookings: (eventId) => cached(`bookings:${eventId || '*'}`, async () => (await loadFb()).listBookings(eventId)),
+  listInvites: () => cached('invites', async () => (await loadFb()).listInvites()),
+  listUpdates: () => cached('updates', async () => (await loadFb()).listUpdates()),
 };
 
-// Everything else passes through; any write clears the cache so the next read is fresh.
-const PASS = new Set(['onAuth', 'isInviteLink', 'getChefIdForEmail', 'resetDemo', 'signIn', 'signOut', 'sendInvite', 'resetPassword', 'completeInvite']);
-export const store = new Proxy(raw, {
-  get(target, prop) {
+const SPECIAL = {
+  onAuth(cb) { loadFb().then((fb) => fb.onAuth((u) => { signedIn = !!u; cb(u); })); },
+  // Firebase invite links carry mode=signIn and an oobCode; checking that needs no SDK.
+  isInviteLink() { if (DEMO) return false; const p = new URLSearchParams(location.search); return p.get('mode') === 'signIn' && p.has('oobCode'); },
+  resetDemo() { demo?.resetDemo(); },
+  // Customers' sign-ups: lightweight requests, and they don't change anything public, so keep the cache.
+  createBooking: async (b) => (signedIn || DEMO ? (await loadFb()).createBooking(b) : rest.createBooking(b)),
+  createUpdate: async (u) => (signedIn || DEMO ? (await loadFb()).createUpdate(u) : rest.createUpdate(u)),
+};
+
+// Everything else needs the SDK; writes clear the cache so the next read is fresh.
+const NO_INVALIDATE = new Set(['signIn', 'signOut', 'sendInvite', 'resetPassword', 'completeInvite', 'getChefIdForEmail', 'upload', 'uploadChef']);
+export const store = new Proxy({}, {
+  get(_, prop) {
     if (READS[prop]) return READS[prop];
-    const fn = target[prop];
-    if (typeof fn !== 'function' || PASS.has(prop)) return typeof fn === 'function' ? fn.bind(target) : fn;
-    return async (...args) => { const r = await fn.apply(target, args); invalidate(); return r; };
+    if (SPECIAL[prop]) return SPECIAL[prop];
+    return async (...args) => {
+      const fb = await loadFb();
+      const r = await fb[prop](...args);
+      if (!NO_INVALIDATE.has(prop)) invalidate();
+      return r;
+    };
   },
 });
 

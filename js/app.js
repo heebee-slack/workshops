@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings } from './store.js?v=20261016125301';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016125301';
+import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016130232';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016130232';
 import {
   esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
   toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON,
-} from './util.js?v=20261016125301';
+} from './util.js?v=20261016130232';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016125301 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016130232 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -359,9 +359,10 @@ async function route() {
   const params = new URLSearchParams(qs || '');
   const parts = path.split('/').filter(Boolean);
   try {
-    if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js?v=20261016125301'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016125301'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016125301'); return m.routeChef(parts.slice(1)); }
+    if (needsAuth()) ensureAuth();
+    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016130232'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016130232'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016130232'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -388,22 +389,32 @@ window.addEventListener('hbw-data', () => {
   route().finally(() => (state.soft = false));
 });
 
-const needsAuth = () => /^#\/(admin|chef)/.test(location.hash) || new URLSearchParams(location.search).get('invite');
+const needsAuth = () => /^#\/(admin|chef)/.test(location.hash) || store.isInviteLink();
 
-async function boot() {
-  // Public screens don't wait for login; admin/chef screens re-route once auth is known.
-  state.settings = await getSettings().catch(() => ({ ...DEFAULT_SETTINGS }));
+// The Firebase SDK (and the login check) only loads for admin/chef screens or an existing session.
+let authStarted = false;
+export function ensureAuth() {
+  if (authStarted) return;
+  authStarted = true;
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016125301');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016130232');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;
     if (first) { if (needsAuth()) route(); }
     else window.dispatchEvent(new Event('hbw-auth'));
   });
+}
+
+async function boot() {
+  // Saved settings arrive instantly; on a first visit, draw with defaults and fill in when they land.
+  const quick = await Promise.race([getSettings().catch(() => null), new Promise((r) => setTimeout(() => r(null), 0))]);
+  state.settings = quick || { ...DEFAULT_SETTINGS };
+  if (!quick) getSettings().then((s) => { state.settings = s; window.dispatchEvent(new Event('hbw-data')); }).catch(() => {});
   window.addEventListener('hashchange', route);
-  if (!needsAuth()) route(); else showLoading();
+  if (needsAuth() || hasSession()) ensureAuth();
+  if (!needsAuth()) route();
   if ('serviceWorker' in navigator && !/^(localhost|127\.)/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();

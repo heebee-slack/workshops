@@ -418,3 +418,4 @@ body.is-loading::before { opacity: 1; animation: bar 0.9s linear infinite; }
 /* Live frosted blur only on the one big panel per hero — everything else is a tinted fill (cheap to scroll). */
 .ev-card.featured .panel, .chef-hero .panel { background: rgba(255,255,255,0.18); -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px); }
 .ev-card { transform: translateZ(0); }
+.splash-card { height: min(520px, 118vw); border-radius: var(--r3); background: var(--glass); border: 1px solid var(--glass-border); display: grid; place-items: center; color: var(--gold); font-size: 1.6rem; }
