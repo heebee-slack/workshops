@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016124302';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016124302';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016124459';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016124459';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016124302';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016124302';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016124302';
+import { profileForm } from './chef.js?v=20261016124459';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016124459';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016124459';
 import {
   esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
   setFieldError, loading, validEmail, todayStr, lightbox, copyText,
-} from './util.js?v=20261016124302';
+} from './util.js?v=20261016124459';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -51,7 +51,7 @@ function viewLogin() {
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016124302.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016124459.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -545,7 +545,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016124302')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016124459')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }
