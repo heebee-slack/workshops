@@ -1,6 +1,6 @@
 // Page: network first (fresh after every deploy), saved copy when offline or slow.
 // Versioned app files (?v=…), Firebase SDK, fonts and photos: stored once, served from the phone.
-const VERSION = 'hbw-20261016130232';
+const VERSION = 'hbw-20261016130635';
 const PAGES = 'hbw-pages';
 const FILES = `${VERSION}-files`;
 const PHOTOS = 'hbw-photos';

@@ -111,7 +111,8 @@ input, select, textarea { font: inherit; color: inherit; }
   border: 1px solid var(--glass-border); border-radius: var(--r2);
   box-shadow: var(--shadow), var(--glass-hi);
 }
-.detail-title, .bottom-bar .inner { background: var(--glass-strong); }
+.detail-title { background: var(--sheet-bg); margin-bottom: 14px; }
+.bottom-bar .inner { background: var(--glass-strong); }
 .glass-photo {
   background: rgba(40,28,20,0.34);
   border: 1px solid rgba(255,255,255,0.34);
