@@ -1,9 +1,9 @@
-// Picks the backend (Firebase when js/config.js has keys, otherwise the in-browser demo)
+// Picks the backend (Firebase when js/config.js?v=20261016123504 has keys, otherwise the in-browser demo)
 // and wraps reads in a stale-while-revalidate cache so screens render instantly.
-import { DEMO } from './config.js';
-import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js';
+import { DEMO } from './config.js?v=20261016123504';
+import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016123504';
 
-const backend = DEMO ? await import('./store-demo.js') : await import('./store-firebase.js');
+const backend = DEMO ? await import('./store-demo.js?v=20261016123504') : await import('./store-firebase.js?v=20261016123504');
 const raw = backend.default;
 export const isDemo = DEMO;
 
