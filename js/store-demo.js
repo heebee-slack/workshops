@@ -1,6 +1,6 @@
 // Demo backend: everything lives in this browser's localStorage. Used until Firebase keys are added.
-import { ADMIN_EMAILS, MAX_POSTS_PER_CHEF } from './config.js?v=20261016124459';
-import { uid, makeRef, blobToDataUrl } from './util.js?v=20261016124459';
+import { ADMIN_EMAILS, MAX_POSTS_PER_CHEF } from './config.js?v=20261016125301';
+import { uid, makeRef, blobToDataUrl } from './util.js?v=20261016125301';
 
 const KEY = 'hbw-demo-v1';
 const USER_KEY = 'hbw-demo-user';

@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings } from './store.js?v=20261016124459';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016124459';
+import { store, isDemo, getSettings } from './store.js?v=20261016125301';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016125301';
 import {
   esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
   toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON,
-} from './util.js?v=20261016124459';
+} from './util.js?v=20261016125301';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016124459 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016125301 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -188,7 +188,7 @@ async function viewEvent(id, preselect) {
 // ---------- join waitlist ----------
 function openJoinSheet(ev, batch, chefs) {
   const ups = upcomingBatches(ev);
-  const options = ups.map((b) => { const l = seatsLeft(ev, b); return `<option value="${esc(b.id)}" ${b.id === batch?.id ? 'selected' : ''}>Batch ${batchIndex(ev, b)} · ${esc(batchLabel(b))} · ${l ? `${l} left` : 'Full (waitlist)'}</option>`; }).join('');
+  const options = ups.map((b) => { const l = seatsLeft(ev, b); return `<option value="${esc(b.id)}" ${b.id === batch?.id ? 'selected' : ''}>${esc(batchLabel(b))} · ${l ? `${l} left` : 'Full'}</option>`; }).join('');
   const s = openSheet(`
     <div class="sheet-head"><div><div class="eyebrow">Join the waitlist</div><h2>${esc(ev.title)}</h2></div><button class="icon-btn glass" data-close aria-label="Close">✕</button></div>
     <form id="join" novalidate>
@@ -359,9 +359,9 @@ async function route() {
   const params = new URLSearchParams(qs || '');
   const parts = path.split('/').filter(Boolean);
   try {
-    if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js?v=20261016124459'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016124459'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016124459'); return m.routeChef(parts.slice(1)); }
+    if (new URLSearchParams(location.search).get('invite') && store.isInviteLink()) { const m = await import('./chef.js?v=20261016125301'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016125301'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016125301'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -395,7 +395,7 @@ async function boot() {
   state.settings = await getSettings().catch(() => ({ ...DEFAULT_SETTINGS }));
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016124459');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016125301');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;
