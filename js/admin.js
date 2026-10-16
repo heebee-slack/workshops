@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016143556';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016143556';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016154407';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016154407';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016143556';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016143556';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016143556';
+import { profileForm } from './chef.js?v=20261016154407';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016154407';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016154407';
 import {
   esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, isSoon, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
   setFieldError, loading, validEmail, todayStr, lightbox, copyText, photo, previewOf, packImg, imgMeta,
-} from './util.js?v=20261016143556';
+} from './util.js?v=20261016154407';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -51,7 +51,7 @@ function viewLogin() {
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016143556.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016154407.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -125,12 +125,27 @@ async function viewEvents() {
       <div class="grow"><div class="title">${esc(ev.title || 'Untitled')}</div>
         <div class="small muted">${esc(dateRange(ev) || 'No batches yet')} · ${(ev.batches || []).length} batch${(ev.batches || []).length === 1 ? '' : 'es'}</div>
         <div class="flex wrap-gap" style="gap:6px;margin-top:4px">${statusBadge(ev)}${ev.featured ? '<span class="badge gold">Featured</span>' : ''}<span class="badge ok">${conf}/${seats} confirmed</span>${wait ? `<span class="badge wait">${wait} waitlist</span>` : ''}</div></div>
-      <div class="flex wrap-gap" style="justify-content:flex-end;gap:6px"><a class="btn xs" href="#/admin/bookings/${esc(ev.id)}">Bookings</a><a class="btn xs ghost" href="#/admin/event/${esc(ev.id)}">Edit</a></div>
+      <div class="flex wrap-gap" style="justify-content:flex-end;gap:6px"><a class="btn xs" href="#/admin/bookings/${esc(ev.id)}">Bookings</a><a class="btn xs ghost" href="#/admin/event/${esc(ev.id)}">Edit</a>
+        <button class="btn xs ${isSoon(ev) ? 'gold' : 'ghost'}" data-mode="${esc(ev.id)}">${isSoon(ev) ? 'Open booking' : 'Set coming soon'}</button></div>
     </div>`;
   };
   shell('events', `
     <div class="adm-head"><h1 class="h-title">Workshops</h1><a class="btn gold sm" href="#/admin/event/new">＋ New workshop</a></div>
     ${sorted.length ? `<section class="glass" style="padding:4px 0">${sorted.map(row).join('')}</section>` : '<section class="glass card empty"><div class="sym">✦</div><p>Create your first workshop.</p></section>'}`);
+  $$('[data-mode]').forEach((b) => (b.onclick = async () => {
+    const ev = events.find((x) => x.id === b.dataset.mode);
+    if (isSoon(ev)) {
+      if (!(ev.batches || []).some((bt) => upcomingBatches(ev).includes(bt))) return toast('Add upcoming batches first: tap Edit, add them, then open booking.', { bad: true, ms: 6000 });
+      if (!(await confirmBox('Open booking?', `${ev.title} will show its batches and the Join waitlist button. Then send the "booking is open" message from Stay updated.`, { ok: 'Open booking' }))) return;
+      await store.patchEvent(ev.id, { bookingMode: 'open' });
+      toast('Booking is open. Send the message from Stay updated.', { action: 'Stay updated', onAction: () => (location.hash = '#/admin/updates') });
+    } else {
+      if (!(await confirmBox('Set to coming soon?', `${ev.title} will show "Coming soon" and a Keep me updated button instead of Join. Existing bookings and batches are kept.`, { ok: 'Set coming soon' }))) return;
+      await store.patchEvent(ev.id, { bookingMode: 'soon' });
+      toast('Now showing as coming soon');
+    }
+    viewEvents();
+  }));
 }
 
 // ---------- event editor ----------
@@ -150,6 +165,15 @@ async function viewEventEditor(id) {
     <div class="adm-head"><div><a class="tiny muted" href="#/admin/events">‹ Workshops</a><h1 class="h-title">${id ? 'Edit workshop' : 'New workshop'}</h1></div>
       ${id ? `<a class="btn xs ghost" href="#/e/${esc(id)}" target="_blank">View page ↗</a>` : ''}</div>
     <form id="evf" novalidate>
+    <section class="glass card">
+      <div class="label">Booking</div>
+      <div class="row2" style="margin-bottom:10px">
+        <label class="mode-opt"><input type="radio" name="mode" value="open" ${ev.bookingMode !== 'soon' ? 'checked' : ''}><span><b>Open for waitlist</b><br><span class="small muted">People pick a batch and join</span></span></label>
+        <label class="mode-opt"><input type="radio" name="mode" value="soon" ${ev.bookingMode === 'soon' ? 'checked' : ''}><span><b>Coming soon</b><br><span class="small muted">Shows "Keep me updated" instead</span></span></label>
+      </div>
+      <div class="field" id="soon-note" style="margin:0;${ev.bookingMode === 'soon' ? '' : 'display:none'}"><label>Launch note (optional)</label><input type="text" name="soonNote" value="${esc(ev.soonNote || '')}" placeholder="Launching in November" maxlength="60"><div class="hint">Shown on the card. Batches aren't needed while it's coming soon. Switch to "Open" when you add them, then send everyone on the Stay updated list the "booking is open" message.</div></div>
+    </section>
+
     <section class="glass card">
       <div class="label">Basics</div>
       <div class="field"><label>Background image</label><div id="ev-img">${uploadBox(ev.imageUrl, 'Upload event photo', 200)}</div><div class="hint">Shown full-bleed on the feed card and event page. Large photos are resized automatically.</div></div>
@@ -194,15 +218,6 @@ async function viewEventEditor(id) {
       <div id="batch-rows"></div>
       <div class="spacer"></div><button type="button" class="btn xs ghost" id="add-batch">＋ Add one batch</button>
       <div class="field err" id="batch-err" style="margin:10px 0 0"><div class="err-msg"></div></div>
-    </section>
-
-    <section class="glass card">
-      <div class="label">Booking</div>
-      <div class="row2" style="margin-bottom:10px">
-        <label class="mode-opt"><input type="radio" name="mode" value="open" ${ev.bookingMode !== 'soon' ? 'checked' : ''}><span><b>Open for waitlist</b><br><span class="small muted">People pick a batch and join</span></span></label>
-        <label class="mode-opt"><input type="radio" name="mode" value="soon" ${ev.bookingMode === 'soon' ? 'checked' : ''}><span><b>Coming soon</b><br><span class="small muted">Shows "Keep me updated" instead</span></span></label>
-      </div>
-      <div class="field" id="soon-note" style="margin:0;${ev.bookingMode === 'soon' ? '' : 'display:none'}"><label>Launch note (optional)</label><input type="text" name="soonNote" value="${esc(ev.soonNote || '')}" placeholder="Launching in November" maxlength="60"><div class="hint">Shown on the card. Batches aren't needed while it's coming soon. Switch to "Open" when you add them, then send everyone on the Stay updated list the "booking is open" message.</div></div>
     </section>
 
     <section class="glass card">
@@ -560,7 +575,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016143556')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016154407')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }
