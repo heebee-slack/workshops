@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016131307';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016131307';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016131927';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016131927';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016131307';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016131307';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131307';
+import { profileForm } from './chef.js?v=20261016131927';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016131927';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131927';
 import {
   esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
   setFieldError, loading, validEmail, todayStr, lightbox, copyText, photo, previewOf, packImg, imgMeta,
-} from './util.js?v=20261016131307';
+} from './util.js?v=20261016131927';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -17,7 +17,7 @@ function shell(tab, body, { wide = true } = {}) {
   if (adminNav !== state.navId) throw Object.assign(new Error('stale view'), { stale: true });
   render(`<div class="wrap ${wide ? 'wide' : ''}">
     <div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a>
-      <div class="flex"><span class="tiny muted">${esc(state.user?.email || '')}</span><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button><button class="btn xs ghost" data-signout>Sign out</button></div></div>
+      <div class="flex"><span class="tiny muted">${esc(state.user?.email || '')}</span><button class="btn xs ghost" data-signout>Sign out</button></div></div>
     <nav class="tabs glass">${TABS.map(([k, l]) => `<a href="#/admin/${k}" class="${k === tab ? 'on' : ''}">${l}</a>`).join('')}</nav>
     ${body}</div>`);
   $('[data-signout]').onclick = async () => { await store.signOut(); location.hash = '#/admin'; };
@@ -45,13 +45,13 @@ export async function routeAdmin(parts, params) {
 // ---------- auth ----------
 function viewLogin() {
   render(`<div class="wrap" style="max-width:420px">
-    <div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button></div>
+    <div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a></div>
     <section class="glass card" style="margin-top:40px;padding:26px 22px">
       <div class="eyebrow">Team</div><h1 class="h-title" style="margin:6px 0 20px">Sign in</h1>
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016131307.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016131927.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -548,7 +548,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016131307')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016131927')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }

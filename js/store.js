@@ -1,13 +1,13 @@
 // Backends: demo (no Firebase keys) · REST for public screens (tiny, no SDK) · Firebase SDK, loaded
 // only when someone signs in (admin / chef). Reads are wrapped in a stale-while-revalidate cache.
-import { DEMO } from './config.js?v=20261016131307';
-import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016131307';
+import { DEMO } from './config.js?v=20261016131927';
+import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016131927';
 
 export const isDemo = DEMO;
-const demo = DEMO ? (await import('./store-demo.js?v=20261016131307')).default : null;
-const rest = DEMO ? null : (await import('./store-rest.js?v=20261016131307')).default;
+const demo = DEMO ? (await import('./store-demo.js?v=20261016131927')).default : null;
+const rest = DEMO ? null : (await import('./store-rest.js?v=20261016131927')).default;
 let fbPromise = null;
-const loadFb = () => (DEMO ? Promise.resolve(demo) : (fbPromise ||= import('./store-firebase.js?v=20261016131307').then((m) => m.default)));
+const loadFb = () => (DEMO ? Promise.resolve(demo) : (fbPromise ||= import('./store-firebase.js?v=20261016131927').then((m) => m.default)));
 let signedIn = false;
 // Signed-in sessions (admin/chef) read through the SDK so drafts and private data follow their permissions.
 const reader = async () => (DEMO ? demo : signedIn ? loadFb() : rest);

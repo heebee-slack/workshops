@@ -1,7 +1,7 @@
 // Public reads and waitlist sign-ups over Firestore's REST API: one plain HTTPS request each,
 // no SDK download and no connection handshake. Same security rules apply.
-import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID } from './config.js?v=20261016131307';
-import { makeRef } from './util.js?v=20261016131307';
+import { FIREBASE_CONFIG, FIRESTORE_DATABASE_ID } from './config.js?v=20261016131927';
+import { makeRef } from './util.js?v=20261016131927';
 
 const BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIRESTORE_DATABASE_ID}/documents`;
 const KEY = `key=${FIREBASE_CONFIG.apiKey}`;

@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016131307';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016131307';
+import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016131927';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016131927';
 import {
   esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
   toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON, photo, preload,
-} from './util.js?v=20261016131307';
+} from './util.js?v=20261016131927';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -16,7 +16,7 @@ export function toggleTheme() {
   root.dataset.theme = dark ? 'light' : 'dark';
   try { localStorage.setItem('hbw-theme', root.dataset.theme); } catch {}
 }
-const themeBtn = () => `<button class="icon-btn glass" data-theme-toggle aria-label="Switch light or dark">◐</button>`;
+const themeBtn = () => ``;
 export function wireCommon(root = app) { $$('[data-theme-toggle]', root).forEach((b) => (b.onclick = toggleTheme)); }
 
 let loaderTimer;
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016131307 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016131927 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -125,7 +125,7 @@ async function viewEvent(id, preselect) {
   const v = ev.venue || {};
   render(`
     <div class="detail-hero">${img(ev.imageUrl, '', ev.title, true)}
-      <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" aria-label="Back">${ICON.back}</a><div class="flex">${themeBtn().replace('glass', 'glass-photo')}<button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div></div>
+      <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" aria-label="Back">${ICON.back}</a><div class="flex"><button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div></div>
     </div>
     <div class="wrap detail-body">
       <section class="glass detail-title">
@@ -364,9 +364,9 @@ async function route() {
   const parts = path.split('/').filter(Boolean);
   try {
     if (needsAuth()) ensureAuth();
-    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016131307'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016131307'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016131307'); return m.routeChef(parts.slice(1)); }
+    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016131927'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016131927'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016131927'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -402,7 +402,7 @@ export function ensureAuth() {
   authStarted = true;
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016131307');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016131927');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;

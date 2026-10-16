@@ -1,9 +1,9 @@
-import { store, isDemo } from './store.js?v=20261016131307';
-import { state, render, showLoading } from './app.js?v=20261016131307';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131307';
-import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox, photo, previewOf, packImg, imgMeta } from './util.js?v=20261016131307';
+import { store, isDemo } from './store.js?v=20261016131927';
+import { state, render, showLoading } from './app.js?v=20261016131927';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131927';
+import { esc, $, $$, uid, resizeImage, toast, openSheet, confirmBox, setFieldError, loading, validEmail, lightbox, photo, previewOf, packImg, imgMeta } from './util.js?v=20261016131927';
 
-const head = (right = '') => `<div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a><div class="flex"><button class="icon-btn glass" data-theme-toggle aria-label="Theme">◐</button>${right}</div></div>`;
+const head = (right = '') => `<div class="topbar"><a class="brand" href="#/" style="text-decoration:none">Heebee</a><div class="flex">${right}</div></div>`;
 
 let authHooked = false;
 export async function routeChef() {
