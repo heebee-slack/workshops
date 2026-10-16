@@ -1,5 +1,5 @@
 // App shell + photos served from the phone; refreshed in the background.
-const VERSION = 'hbw-v2';
+const VERSION = 'hbw-v3';
 const SHELL = `${VERSION}-shell`;
 const PHOTOS = 'hbw-photos';
 
@@ -31,8 +31,8 @@ self.addEventListener('fetch', (e) => {
   const shell = url.origin === location.origin || url.hostname === 'www.gstatic.com' || url.hostname.endsWith('fonts.googleapis.com') || url.hostname === 'fonts.gstatic.com';
   if (!shell) return;
   e.respondWith(caches.open(SHELL).then(async (c) => {
-    const hit = await c.match(req, { ignoreSearch: url.origin === location.origin && url.pathname.endsWith('/') });
-    const net = fetch(req).then((r) => { if (r.ok || r.type === 'opaque') c.put(req, r.clone()); return r; }).catch(() => hit);
+    const hit = await c.match(req);
+    const net = fetch(req, url.origin === location.origin ? { cache: 'no-cache' } : {}).then((r) => { if (r.ok || r.type === 'opaque') c.put(req, r.clone()); return r; }).catch(() => hit);
     if (hit) { e.waitUntil(net); return hit; }
     return net;
   }));
