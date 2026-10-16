@@ -1,10 +1,10 @@
-import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016131927';
-import { DEFAULT_SETTINGS } from './defaults.js?v=20261016131927';
+import { store, isDemo, getSettings, hasSession } from './store.js?v=20261016143556';
+import { DEFAULT_SETTINGS } from './defaults.js?v=20261016143556';
 import {
-  esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice, minPrice,
+  esc, $, $$, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, isSoon, seatsLeft, batchPrice, minPrice,
   nextBatch, firstOpenBatch, totalSeatsLeft, batchLabel, batchIndex, dateRange, validPhone, validEmail, normPhone, waLink, siteUrl,
   toast, openSheet, lightbox, setFieldError, copyText, shareLink, loading, ICON, photo, preload,
-} from './util.js?v=20261016131927';
+} from './util.js?v=20261016143556';
 
 const app = $('#app');
 export const state = { settings: null, user: null, navId: 0, soft: false };
@@ -24,7 +24,7 @@ export function render(html) {
   clearTimeout(loaderTimer);
   document.body.classList.remove('is-loading');
   const y = window.scrollY;
-  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016131927 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
+  app.innerHTML = (isDemo ? `<div class="demo-banner">Demo mode · sample data saved in this browser only · add Firebase keys in js/config.js?v=20261016143556 to go live</div>` : '') + `<div class="${state.soft ? '' : 'view-enter'}">${html}</div>`;
   wireCommon();
   window.scrollTo(0, state.soft ? y : 0);
 }
@@ -44,14 +44,17 @@ const chefMap = async () => Object.fromEntries((await store.listChefs()).map((c)
 
 // ---------- home feed ----------
 function eventCard(ev, chef, { featured = false, eager = false } = {}) {
-  const past = isPast(ev);
-  const nb = nextBatch(ev);
+  const past = isPast(ev), soon = isSoon(ev);
+  const nb = soon ? null : nextBatch(ev);
   const left = totalSeatsLeft(ev);
-  const top = past
+  const priceTag = minPrice(ev) ? ((ev.batches || []).length && new Set(ev.batches.map((b) => batchPrice(ev, b))).size > 1 ? 'from ' : '') + fmtPrice(minPrice(ev)) : '';
+  const top = soon
+    ? `<span class="pill glass-photo">Coming soon</span>${priceTag ? `<span class="pill glass-photo">${priceTag}</span>` : ''}`
+    : past
     ? `<span class="pill glass-photo">Ended</span><span class="pill glass-photo">${esc(dateRange(ev))}</span>`
     : `<span class="pill glass-photo">${esc(dateRange({ batches: upcomingBatches(ev) }))}</span><span class="pill glass-photo">${minPrice(ev) ? (new Set(ev.batches.map((b) => batchPrice(ev, b))).size > 1 ? 'from ' : '') + fmtPrice(minPrice(ev)) : 'Free'}</span>`;
-  const meta = [chef && !chef.blocked ? chef.name : '', nb ? fmtTime(nb.time) : '', fmtDuration(ev.durationMins)].filter(Boolean).join(' · ');
-  const action = past
+  const meta = [chef && !chef.blocked ? chef.name : '', soon ? ev.soonNote : nb ? fmtTime(nb.time) : '', fmtDuration(ev.durationMins)].filter(Boolean).join(' · ');
+  const action = past || soon
     ? `<button class="btn white sm" data-updates="${esc(ev.id)}">Keep me updated</button>`
     : `<span class="btn white sm">${left ? 'Join waitlist' : 'View batches'}</span>`;
   return `<a class="ev-card ${featured ? 'featured' : 'compact'} ${past ? 'past' : ''}" href="#/e/${esc(ev.id)}">
@@ -61,7 +64,7 @@ function eventCard(ev, chef, { featured = false, eager = false } = {}) {
       ${featured ? '<div class="feature-tag">Next up at Heebee</div>' : ''}
       <h3>${esc(ev.title)}</h3>
       <p class="meta">${esc(meta)}</p>
-      <div class="row"><span class="seats">${past ? 'Past workshop' : left ? `${left} spot${left > 1 ? 's' : ''} left` : 'All batches full · join waitlist'}</span>${action}</div>
+      <div class="row"><span class="seats">${soon ? 'Booking opens soon' : past ? 'Past workshop' : left ? `${left} spot${left > 1 ? 's' : ''} left` : 'All batches full · join waitlist'}</span>${action}</div>
     </div>
   </a>`;
 }
@@ -70,16 +73,19 @@ async function viewHome() {
   showLoading(); const live = navGuard();
   const [events, chefs] = await Promise.all([store.listEvents(), chefMap()]);
   if (!live()) return;
-  const upcoming = events.filter((e) => !isPast(e)).sort((a, b) => (nextBatch(a)?.date || '').localeCompare(nextBatch(b)?.date || '') || (nextBatch(a)?.time || '').localeCompare(nextBatch(b)?.time || ''));
+  const soonList = events.filter(isSoon).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const upcoming = events.filter((e) => !isSoon(e) && !isPast(e)).sort((a, b) => (nextBatch(a)?.date || '').localeCompare(nextBatch(b)?.date || '') || (nextBatch(a)?.time || '').localeCompare(nextBatch(b)?.time || ''));
   const past = events.filter(isPast).sort((a, b) => (sortBatches(b.batches).at(-1)?.date || '').localeCompare(sortBatches(a.batches).at(-1)?.date || ''));
-  const featured = upcoming.find((e) => e.featured) || upcoming[0];
+  const featured = upcoming.find((e) => e.featured) || upcoming[0] || soonList.find((e) => e.featured) || soonList[0];
   const rest = upcoming.filter((e) => e !== featured);
+  const soonRest = soonList.filter((e) => e !== featured);
   const wa = state.settings.whatsapp;
   render(`<div class="wrap">
     <div class="topbar"><span class="brand">Heebee</span>${themeBtn()}</div>
     <header class="hero-head"><div class="eyebrow">Learn · Cook · Taste</div><h1 class="h-display">Workshops</h1></header>
     ${featured ? eventCard(featured, chefs[featured.chefId], { featured: true, eager: true }) : `<div class="glass card empty"><div class="sym">✦</div><p>New workshops are being planned.</p><p class="muted small">Check back soon.</p></div>`}
-    ${rest.length ? `<div class="label" style="margin-top:28px">Coming soon</div><div class="feed-grid">${rest.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
+    ${rest.length ? `<div class="label" style="margin-top:28px">Open for booking</div><div class="feed-grid">${rest.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
+    ${soonRest.length ? `<div class="label" style="margin-top:28px">Coming soon</div><div class="feed-grid">${soonRest.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
     ${past.length ? `<div class="label" style="margin-top:28px">Past workshops</div><div class="feed-grid">${past.map((e) => eventCard(e, chefs[e.chefId])).join('')}</div>` : ''}
     <footer class="foot">
       ${wa ? `<a class="btn glassy sm" href="${esc(waLink(wa, 'Hi Heebee! I have a question about the workshops.'))}" target="_blank" rel="noopener">Chat with us on WhatsApp</a><div class="spacer"></div>` : ''}
@@ -89,7 +95,7 @@ async function viewHome() {
   $$('[data-updates]').forEach((b) => (b.onclick = (e) => { e.preventDefault(); const ev = events.find((x) => x.id === b.dataset.updates); openUpdatesSheet(ev); }));
   // Warm the next screens: chef galleries and hero photos, while the phone is idle.
   (window.requestIdleCallback || setTimeout)(() => {
-    for (const id of new Set(upcoming.map((e) => e.chefId).filter(Boolean))) store.listPosts(id).catch(() => {});
+    for (const id of new Set([...upcoming, ...soonList].map((e) => e.chefId).filter(Boolean))) store.listPosts(id).catch(() => {});
     upcoming.slice(0, 4).forEach((e) => { const c = chefs[e.chefId]; preload(c?.photoUrl, true); });
   });
 }
@@ -101,14 +107,15 @@ async function viewEvent(id, preselect) {
   if (!live()) return;
   if (!ev || ev.status !== 'published' && !(state.user && state.isAdmin)) return viewNotFound('This workshop isn\'t available.');
   const chef = chefs[ev.chefId];
-  const past = isPast(ev);
-  const ups = upcomingBatches(ev);
+  const past = isPast(ev), soon = isSoon(ev);
+  const ups = soon ? [] : upcomingBatches(ev);
   let sel = ups.find((b) => b.id === preselect && seatsLeft(ev, b) > 0) || firstOpenBatch(ev);
 
   const byDay = {};
   ups.forEach((b) => (byDay[b.date] ||= []).push(b));
-  const multiPrice = new Set(ev.batches.map((b) => batchPrice(ev, b))).size > 1;
-  const multiChef = new Set(ev.batches.map((b) => b.chefId || ev.chefId)).size > 1;
+  const batches = ev.batches || [];
+  const multiPrice = new Set(batches.map((b) => batchPrice(ev, b))).size > 1;
+  const multiChef = new Set(batches.map((b) => b.chefId || ev.chefId)).size > 1;
   const batchHtml = Object.entries(byDay).map(([d, list]) => `
     <div class="batch-day"><div class="label">${esc(fmtDateLong(d))}</div><div class="batch-grid">
     ${list.map((b) => {
@@ -129,14 +136,14 @@ async function viewEvent(id, preselect) {
     </div>
     <div class="wrap detail-body">
       <section class="glass detail-title">
-        <div class="eyebrow">${past ? 'Past workshop' : esc(dateRange(ev))}</div>
+        <div class="eyebrow">${soon ? `Coming soon${ev.soonNote ? ' · ' + esc(ev.soonNote) : ''}` : past ? 'Past workshop' : esc(dateRange(ev))}</div>
         <h1 class="h-title">${esc(ev.title)}</h1>
         ${ev.tagline ? `<p class="muted" style="margin:0">${esc(ev.tagline)}</p>` : ''}
         <div class="chips">
           <span class="chip">⏱ ${esc(fmtDuration(ev.durationMins))}</span>
           ${v.name ? `<span class="chip">⌖ ${esc(v.name)}</span>` : ''}
-          <span class="chip gold">${minPrice(ev) ? (multiPrice ? 'from ' : '') + fmtPrice(minPrice(ev)) : 'Free'}</span>
-          ${!past ? `<span class="chip">◎ ${totalSeatsLeft(ev)} spots left</span>` : ''}
+          ${minPrice(ev) ? `<span class="chip gold">${(multiPrice ? 'from ' : '') + fmtPrice(minPrice(ev))}</span>` : ''}
+          ${!past && !soon ? `<span class="chip">◎ ${totalSeatsLeft(ev)} spots left</span>` : ''}
         </div>
       </section>
 
@@ -148,7 +155,8 @@ async function viewEvent(id, preselect) {
       ${ev.description ? `<section class="glass card"><div class="label">About the workshop</div><p class="prose">${esc(ev.description)}</p></section>` : ''}
       ${(ev.includes || []).length ? `<section class="glass card"><div class="label">What's included</div><ul class="list-sym">${ev.includes.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></section>` : ''}
 
-      ${past ? `<section class="glass card center"><div class="label">This workshop has ended</div><p class="muted small" style="margin:0 0 14px">Want to know when it's back? We'll WhatsApp you as soon as new batches open.</p><button class="btn block" data-updates>Keep me updated</button></section>`
+      ${soon ? `<section class="glass card center"><div class="label">Booking opens soon</div><p class="muted small" style="margin:0 0 14px">${ev.soonNote ? esc(ev.soonNote) + '. ' : ''}Tap below and we'll WhatsApp you the moment batches open, before anyone else.</p><button class="btn gold block" data-updates>Keep me updated</button></section>`
+        : past ? `<section class="glass card center"><div class="label">This workshop has ended</div><p class="muted small" style="margin:0 0 14px">Want to know when it's back? We'll WhatsApp you as soon as new batches open.</p><button class="btn block" data-updates>Keep me updated</button></section>`
         : `<section class="glass card" id="batches"><div class="label">Choose your batch</div>${batchHtml}<div id="next-hint"></div></section>`}
 
       ${v.name || v.address ? `<section class="glass card"><div class="label">Venue</div><div style="font-weight:700">${esc(v.name || '')}</div><div class="muted small">${esc(v.address || '')}</div>
@@ -156,12 +164,13 @@ async function viewEvent(id, preselect) {
 
       <p class="center tiny muted">Bookings are non-refundable · <button class="linkish tiny" data-policy>Read the full policy</button></p>
     </div>
-    ${past ? '' : `<div class="bottom-bar"><div class="inner glass"><div class="price" id="bb-price"></div><button class="btn gold" id="bb-join">Join waitlist</button></div></div>`}
+    ${past ? '' : soon ? `<div class="bottom-bar"><div class="inner glass"><div class="price">${minPrice(ev) ? fmtPrice(minPrice(ev)) : ''}<small>Booking opens soon</small></div><button class="btn gold" data-updates>Keep me updated</button></div></div>`
+      : `<div class="bottom-bar"><div class="inner glass"><div class="price" id="bb-price"></div><button class="btn gold" id="bb-join">Join waitlist</button></div></div>`}
   `);
 
   $('[data-share]').onclick = () => shareLink(ev.title, `${ev.title} at Heebee`, `${siteUrl()}#/e/${ev.id}`);
   $('[data-policy]').onclick = () => openPolicySheet();
-  if (past) { $('[data-updates]').onclick = () => openUpdatesSheet(ev); return; }
+  if (past || soon) { $$('[data-updates]').forEach((b) => (b.onclick = () => openUpdatesSheet(ev))); return; }
 
   const paint = () => {
     $$('[data-batch]').forEach((b) => b.classList.toggle('sel', b.dataset.batch === sel?.id));
@@ -274,7 +283,7 @@ export function openPolicySheet() {
 function openUpdatesSheet(ev) {
   const s = openSheet(`
     <div class="sheet-head"><div><div class="eyebrow">Keep me updated</div><h2>${esc(ev.title)}</h2></div><button class="icon-btn glass" data-close aria-label="Close">✕</button></div>
-    <p class="muted small" style="margin-top:-6px">We'll WhatsApp you when this workshop is back with new batches.</p>
+    <p class="muted small" style="margin-top:-6px">${isSoon(ev) ? 'We\'ll WhatsApp you the moment booking opens.' : 'We\'ll WhatsApp you when this workshop is back with new batches.'}</p>
     <form id="upd" novalidate>
       <div class="field"><label>Name <span class="req">*</span></label><input type="text" name="name" autocomplete="name" placeholder="Riya Sharma"><div class="err-msg"></div></div>
       <div class="field"><label>WhatsApp <span class="req">*</span></label><input type="tel" name="whatsapp" inputmode="tel" placeholder="98140 12345"><div class="err-msg"></div></div>
@@ -290,7 +299,7 @@ function openUpdatesSheet(ev) {
     if (bad) return;
     try {
       await store.createUpdate({ eventId: ev.id, eventTitle: ev.title, name: f.name.value.trim(), whatsapp: normPhone(f.whatsapp.value) });
-      s.set(`<div class="success"><div class="sym">✓</div><h2 style="font-weight:300;font-size:1.5rem;margin:0 0 6px">You're on the list</h2><p class="muted small">We'll message you on WhatsApp when ${esc(ev.title)} is back.</p><button class="btn block" data-close>Done</button></div>`);
+      s.set(`<div class="success"><div class="sym">✓</div><h2 style="font-weight:300;font-size:1.5rem;margin:0 0 6px">You're on the list</h2><p class="muted small">We'll message you on WhatsApp when ${esc(ev.title)} ${isSoon(ev) ? 'opens for booking' : 'is back'}.</p><button class="btn block" data-close>Done</button></div>`);
     } catch (err) { toast(err.message, { bad: true }); }
   };
 }
@@ -305,7 +314,7 @@ async function viewChef(id) {
   const upcoming = mine.filter((e) => !isPast(e));
   const past = mine.filter(isPast);
   const cover = chef.coverUrl || chef.photoUrl;
-  const mini = (e) => `<a class="mini-ev" href="#/e/${esc(e.id)}">${img(e.imageUrl, '', e.title, false, true)}<div><div style="font-weight:700">${esc(e.title)}</div><div class="muted small">${esc(dateRange(e))}${isPast(e) ? '' : ' · ' + fmtPrice(minPrice(e))}</div></div></a>`;
+  const mini = (e) => `<a class="mini-ev" href="#/e/${esc(e.id)}">${img(e.imageUrl, '', e.title, false, true)}<div><div style="font-weight:700">${esc(e.title)}</div><div class="muted small">${isSoon(e) ? 'Coming soon' : esc(dateRange(e))}${isPast(e) || !minPrice(e) ? '' : ' · ' + fmtPrice(minPrice(e))}</div></div></a>`;
   render(`
     <div class="chef-hero">${cover ? img(cover, 'cover', chef.name, true) : ''}
       <div class="hero-nav"><a class="icon-btn glass-photo" href="#/" data-back aria-label="Back">${ICON.back}</a><button class="icon-btn glass-photo" data-share aria-label="Share">${ICON.share}</button></div>
@@ -364,9 +373,9 @@ async function route() {
   const parts = path.split('/').filter(Boolean);
   try {
     if (needsAuth()) ensureAuth();
-    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016131927'); return m.viewInvite(); }
-    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016131927'); return await m.routeAdmin(parts.slice(1), params); }
-    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016131927'); return m.routeChef(parts.slice(1)); }
+    if (store.isInviteLink()) { const m = await import('./chef.js?v=20261016143556'); return m.viewInvite(); }
+    if (parts[0] === 'admin') { const m = await import('./admin.js?v=20261016143556'); return await m.routeAdmin(parts.slice(1), params); }
+    if (parts[0] === 'chef') { const m = await import('./chef.js?v=20261016143556'); return m.routeChef(parts.slice(1)); }
     if (parts[0] === 'e' && parts[1]) return await viewEvent(parts[1], params.get('b'));
     if (parts[0] === 'c' && parts[1]) return await viewChef(parts[1]);
     if (parts[0] === 'pay') return viewPay(params);
@@ -402,7 +411,7 @@ export function ensureAuth() {
   authStarted = true;
   store.onAuth(async (u) => {
     state.user = u;
-    const { ADMIN_EMAILS } = await import('./config.js?v=20261016131927');
+    const { ADMIN_EMAILS } = await import('./config.js?v=20261016143556');
     state.isAdmin = !!u && ADMIN_EMAILS.includes(u.email);
     const first = !state.authReady;
     state.authReady = true;

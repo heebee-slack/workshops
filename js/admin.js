@@ -1,15 +1,15 @@
-import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016131927';
-import { state, render, toggleTheme, showLoading } from './app.js?v=20261016131927';
+import { store, isDemo, getSettings, syncCounts, nextSpot } from './store.js?v=20261016143556';
+import { state, render, toggleTheme, showLoading } from './app.js?v=20261016143556';
 
 let adminNav = -1;
-import { profileForm } from './chef.js?v=20261016131927';
-import { TEMPLATE_VARS } from './defaults.js?v=20261016131927';
-import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016131927';
+import { profileForm } from './chef.js?v=20261016143556';
+import { TEMPLATE_VARS } from './defaults.js?v=20261016143556';
+import { MAX_POSTS_PER_CHEF } from './config.js?v=20261016143556';
 import {
-  esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, seatsLeft, batchPrice,
+  esc, $, $$, uid, fmtDate, fmtDateLong, fmtTime, fmtDuration, fmtPrice, sortBatches, upcomingBatches, isPast, isSoon, seatsLeft, batchPrice,
   batchLabel, batchIndex, dateRange, prettyPhone, waLink, fillTemplate, siteUrl, timeAgo, resizeImage, toast, openSheet, confirmBox,
   setFieldError, loading, validEmail, todayStr, lightbox, copyText, photo, previewOf, packImg, imgMeta,
-} from './util.js?v=20261016131927';
+} from './util.js?v=20261016143556';
 
 const TABS = [['events', 'Workshops'], ['bookings', 'Bookings'], ['chefs', 'Chefs'], ['updates', 'Stay updated'], ['settings', 'Settings']];
 
@@ -51,7 +51,7 @@ function viewLogin() {
       <form id="login" novalidate>
         <div class="field"><label>Email</label><input type="email" name="email" autocomplete="username" placeholder="you@heebeecoffee.com"><div class="err-msg"></div></div>
         <div class="field"><label>Password</label><input type="password" name="password" autocomplete="current-password"><div class="err-msg"></div>
-        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016131927.</div>' : ''}</div>
+        ${isDemo ? '<div class="hint">Demo mode: the password is not checked. Use the admin email from js/config.js?v=20261016143556.</div>' : ''}</div>
         <button class="btn block" type="submit">Sign in</button>
       </form>
     </section></div>`);
@@ -73,7 +73,7 @@ function viewNotAdmin() {
 
 // ---------- shared ----------
 const chefMap = async () => Object.fromEntries((await store.listChefs()).map((c) => [c.id, c]));
-const statusBadge = (ev) => ev.status !== 'published' ? '<span class="badge neutral">Draft</span>' : isPast(ev) ? '<span class="badge neutral">Past</span>' : '<span class="badge ok">Live</span>';
+const statusBadge = (ev) => ev.status !== 'published' ? '<span class="badge neutral">Draft</span>' : isSoon(ev) ? '<span class="badge gold">Coming soon</span>' : isPast(ev) ? '<span class="badge neutral">Past</span>' : '<span class="badge ok">Live</span>';
 
 export function messageVars(bk, ev, extra = {}) {
   const s = state.settings;
@@ -197,6 +197,15 @@ async function viewEventEditor(id) {
     </section>
 
     <section class="glass card">
+      <div class="label">Booking</div>
+      <div class="row2" style="margin-bottom:10px">
+        <label class="mode-opt"><input type="radio" name="mode" value="open" ${ev.bookingMode !== 'soon' ? 'checked' : ''}><span><b>Open for waitlist</b><br><span class="small muted">People pick a batch and join</span></span></label>
+        <label class="mode-opt"><input type="radio" name="mode" value="soon" ${ev.bookingMode === 'soon' ? 'checked' : ''}><span><b>Coming soon</b><br><span class="small muted">Shows "Keep me updated" instead</span></span></label>
+      </div>
+      <div class="field" id="soon-note" style="margin:0;${ev.bookingMode === 'soon' ? '' : 'display:none'}"><label>Launch note (optional)</label><input type="text" name="soonNote" value="${esc(ev.soonNote || '')}" placeholder="Launching in November" maxlength="60"><div class="hint">Shown on the card. Batches aren't needed while it's coming soon. Switch to "Open" when you add them, then send everyone on the Stay updated list the "booking is open" message.</div></div>
+    </section>
+
+    <section class="glass card">
       <div class="label">Publishing</div>
       <label class="flex between" style="padding:6px 0"><span><b>Published</b><br><span class="small muted">Visible on the public feed</span></span><span class="switch"><input type="checkbox" name="published" ${ev.status === 'published' ? 'checked' : ''}><span></span></span></label>
       <label class="flex between" style="padding:6px 0"><span><b>Featured</b><br><span class="small muted">Shown as the big card at the top of the feed</span></span><span class="switch"><input type="checkbox" name="featured" ${ev.featured ? 'checked' : ''}><span></span></span></label>
@@ -257,6 +266,7 @@ async function viewEventEditor(id) {
     paintBatches();
   };
   f.chefId.onchange = paintBatches;
+  $$('input[name=mode]', f).forEach((r) => (r.onchange = () => { $('#soon-note').style.display = f.mode.value === 'soon' ? '' : 'none'; setFieldError($('#batch-err')); }));
 
   if (id) $('#del-ev').onclick = async () => {
     const bk = (await store.listBookings(id)).length;
@@ -269,7 +279,8 @@ async function viewEventEditor(id) {
     let bad = false;
     if (!f.title.value.trim()) { setFieldError(f.title.closest('.field'), 'Give the workshop a title'); bad = true; }
     if (!f.chefId.value) { setFieldError(f.chefId.closest('.field'), 'Add a chef in the Chefs tab first'); bad = true; }
-    const batchErr = !batches.length ? 'Add at least one batch' : batches.some((b) => !b.date || !b.time || !(b.seats > 0)) ? 'Every batch needs a date, start time and spots' : '';
+    const soon = f.mode.value === 'soon';
+    const batchErr = soon && !batches.length ? '' : !batches.length ? 'Add at least one batch' : batches.some((b) => !b.date || !b.time || !(b.seats > 0)) ? 'Every batch needs a date, start time and spots' : '';
     setFieldError($('#batch-err'), batchErr); if (batchErr) bad = true;
     if (f.published.checked && !imageUrl) { toast('Add a background image before publishing', { bad: true }); bad = true; }
     if (bad) return;
@@ -282,6 +293,7 @@ async function viewEventEditor(id) {
       venue: { name: f.vname.value.trim(), address: f.vaddr.value.trim(), mapsUrl: f.vmaps.value.trim() },
       batches: batches.map((b) => ({ id: b.id, date: b.date, time: b.time, seats: Number(b.seats), price: b.price === '' || b.price == null ? Number(f.price.value) || 0 : Number(b.price), chefId: b.chefId || lead })),
       status: f.published.checked ? 'published' : 'draft', featured: f.featured.checked,
+      bookingMode: soon ? 'soon' : 'open', soonNote: soon ? f.soonNote.value.trim() : '',
     };
     const btn = $('button[type=submit]', f); btn.disabled = true;
     try {
@@ -508,10 +520,10 @@ async function viewUpdates() {
   const groups = {};
   ups.sort((a, b) => b.createdAt - a.createdAt).forEach((u) => (groups[u.eventId] ||= []).push(u));
   shell('updates', `
-    <div class="adm-head"><div><h1 class="h-title">Stay updated</h1><p class="muted small" style="margin:4px 0 0">People who asked to hear when a past workshop is back. Add new batches to the workshop, then send each person the relaunch message.</p></div></div>
+    <div class="adm-head"><div><h1 class="h-title">Stay updated</h1><p class="muted small" style="margin:4px 0 0">People who tapped "Keep me updated" on a coming-soon or past workshop. When booking opens (green badge), tap Send to WhatsApp each person.</p></div></div>
     ${Object.keys(groups).length ? Object.entries(groups).map(([eid, list]) => {
-      const ev = evById[eid]; const live = ev && !isPast(ev) && ev.status === 'published';
-      return `<section class="glass" style="overflow:hidden;margin-bottom:14px"><div class="batch-head"><span>${esc(ev?.title || list[0].eventTitle || 'Removed workshop')}</span><span>${live ? '<span class="badge ok">New batches live</span>' : '<span class="badge neutral">No new batches yet</span>'}</span></div>
+      const ev = evById[eid]; const live = ev && !isSoon(ev) && !isPast(ev) && ev.status === 'published';
+      return `<section class="glass" style="overflow:hidden;margin-bottom:14px"><div class="batch-head"><span>${esc(ev?.title || list[0].eventTitle || 'Removed workshop')}</span><span>${live ? '<span class="badge ok">Booking open · send now</span>' : ev && isSoon(ev) ? '<span class="badge gold">Coming soon</span>' : '<span class="badge neutral">Booking not open yet</span>'}</span></div>
         ${list.map((u) => `<div class="bk"><div class="flex between wrap-gap"><div><span class="name">${esc(u.name)}</span> <span class="tiny muted">${esc(prettyPhone(u.whatsapp))} · ${timeAgo(u.createdAt)}</span>${u.notifiedAt ? ` <span class="badge ok">Sent ${timeAgo(u.notifiedAt)}</span>` : ''}</div>
           <div class="flex" style="gap:6px">${ev ? `<a class="btn xs ${live ? 'wa' : 'ghost'}" href="${esc(waLink(u.whatsapp, fillTemplate(state.settings.templates.relaunch, { name: u.name.split(' ')[0], event: ev.title, link: `${siteUrl()}#/e/${ev.id}` })))}" target="_blank" rel="noopener" data-notify="${esc(u.id)}">Send relaunch</a>` : ''}<button class="btn xs ghost" data-rm="${esc(u.id)}" aria-label="Remove">✕</button></div></div></div>`).join('')}</section>`;
     }).join('') : '<section class="glass card empty"><div class="sym">◎</div><p class="muted">No sign-ups yet. They appear when people tap "Keep me updated" on a past workshop.</p></section>'}`);
@@ -538,7 +550,7 @@ async function viewSettings() {
     </section>
     <section class="glass card"><div class="label">WhatsApp message templates</div>
       <p class="tpl-vars">Placeholders: ${esc(TEMPLATE_VARS)}</p><p class="small" style="color:var(--warn);margin:0 0 14px">Don't use emojis here. WhatsApp turns emojis in pre-filled messages into "�". Use *bold*, ₹, · and ✦ instead.</p>
-      ${[['payment', 'Payment request (sent to waitlist)'], ['confirmed', 'Seat confirmed'], ['reminder', 'Reminder before the workshop'], ['relaunch', 'Workshop is back (stay updated)']].map(([k, l]) => `<div class="field"><label>${l}</label><textarea name="tpl_${k}" rows="9">${esc(s.templates[k])}</textarea></div>`).join('')}
+      ${[['payment', 'Payment request (sent to waitlist)'], ['confirmed', 'Seat confirmed'], ['reminder', 'Reminder before the workshop'], ['relaunch', 'Booking is open (stay updated list)']].map(([k, l]) => `<div class="field"><label>${l}</label><textarea name="tpl_${k}" rows="9">${esc(s.templates[k])}</textarea></div>`).join('')}
     </section>
     <div class="flex between wrap-gap">${isDemo ? '<button type="button" class="btn sm danger" id="reset-demo">Reset demo data</button>' : '<span></span>'}<button class="btn gold" type="submit">Save settings</button></div>
     </form>`, { wide: false });
@@ -548,7 +560,7 @@ async function viewSettings() {
   f.onsubmit = async (e) => {
     e.preventDefault();
     const patch = {
-      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016131927')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
+      whatsapp: f.whatsapp.value.trim() ? (await import('./util.js?v=20261016143556')).normPhone(f.whatsapp.value) : '', upiId: f.upiId.value.trim(), payeeName: f.payeeName.value.trim(), qrUrl,
       policy: f.policy.value.trim(), templates: Object.fromEntries(['payment', 'confirmed', 'reminder', 'relaunch'].map((k) => [k, f['tpl_' + k].value])),
     };
     try { await store.saveSettings(patch); state.settings = await getSettings(); toast('Settings saved'); } catch (err) { toast(err.message, { bad: true }); }

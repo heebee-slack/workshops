@@ -1,4 +1,4 @@
-import { MAX_UPLOAD_BYTES } from './config.js?v=20261016131927';
+import { MAX_UPLOAD_BYTES } from './config.js?v=20261016143556';
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -35,7 +35,9 @@ export const todayStr = () => { const d = new Date(); return `${d.getFullYear()}
 // ---------- event helpers ----------
 export const sortBatches = (batches = []) => [...batches].sort((a, b) => batchStart(a) - batchStart(b));
 export const upcomingBatches = (ev) => sortBatches(ev.batches).filter((b) => batchStart(b) > new Date());
-export const isPast = (ev) => !(ev.batches || []).length || upcomingBatches(ev).length === 0;
+// "Coming soon" workshops are announced without open booking; they're never treated as past.
+export const isSoon = (ev) => ev.bookingMode === 'soon';
+export const isPast = (ev) => !isSoon(ev) && (!(ev.batches || []).length || upcomingBatches(ev).length === 0);
 export const seatsLeft = (ev, b) => Math.max(0, (Number(b.seats) || 0) - ((ev.confirmed || {})[b.id] || 0));
 export const batchPrice = (ev, b) => Number(b?.price) || Number(ev.price) || 0;
 export const minPrice = (ev) => { const ps = (ev.batches || []).map((b) => batchPrice(ev, b)).filter(Boolean); return ps.length ? Math.min(...ps) : Number(ev.price) || 0; };

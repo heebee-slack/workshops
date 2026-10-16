@@ -1,13 +1,13 @@
 // Backends: demo (no Firebase keys) · REST for public screens (tiny, no SDK) · Firebase SDK, loaded
 // only when someone signs in (admin / chef). Reads are wrapped in a stale-while-revalidate cache.
-import { DEMO } from './config.js?v=20261016131927';
-import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES } from './defaults.js?v=20261016131927';
+import { DEMO } from './config.js?v=20261016143556';
+import { DEFAULT_SETTINGS, DEFAULT_TEMPLATES, OLD_RELAUNCH } from './defaults.js?v=20261016143556';
 
 export const isDemo = DEMO;
-const demo = DEMO ? (await import('./store-demo.js?v=20261016131927')).default : null;
-const rest = DEMO ? null : (await import('./store-rest.js?v=20261016131927')).default;
+const demo = DEMO ? (await import('./store-demo.js?v=20261016143556')).default : null;
+const rest = DEMO ? null : (await import('./store-rest.js?v=20261016143556')).default;
 let fbPromise = null;
-const loadFb = () => (DEMO ? Promise.resolve(demo) : (fbPromise ||= import('./store-firebase.js?v=20261016131927').then((m) => m.default)));
+const loadFb = () => (DEMO ? Promise.resolve(demo) : (fbPromise ||= import('./store-firebase.js?v=20261016143556').then((m) => m.default)));
 let signedIn = false;
 // Signed-in sessions (admin/chef) read through the SDK so drafts and private data follow their permissions.
 const reader = async () => (DEMO ? demo : signedIn ? loadFb() : rest);
@@ -101,7 +101,9 @@ export const store = new Proxy({}, {
 
 export async function getSettings() {
   const s = (await store.getSettings()) || {};
-  return { ...DEFAULT_SETTINGS, ...s, templates: { ...DEFAULT_TEMPLATES, ...(s.templates || {}) } };
+  const templates = { ...DEFAULT_TEMPLATES, ...(s.templates || {}) };
+  if (templates.relaunch === OLD_RELAUNCH) templates.relaunch = DEFAULT_TEMPLATES.relaunch;
+  return { ...DEFAULT_SETTINGS, ...s, templates };
 }
 
 // Recount confirmed seats per batch from the bookings themselves (self-healing).

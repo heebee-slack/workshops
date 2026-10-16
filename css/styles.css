@@ -406,9 +406,12 @@ body.is-loading::before { opacity: 1; animation: bar 0.9s linear infinite; }
 @keyframes bar { from { background-position: -50% 0; } to { background-position: 150% 0; } }
 
 /* Live frosted blur only on the one big panel per hero — everything else is a tinted fill (cheap to scroll). */
-.ev-card.featured .panel, .chef-hero .panel { background: rgba(255,255,255,0.18); -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px); }
+.ev-card .panel, .chef-hero .panel { background: rgba(255,255,255,0.18); -webkit-backdrop-filter: saturate(160%) blur(14px); backdrop-filter: saturate(160%) blur(14px); }
 .ev-card { transform: translateZ(0); }
 .splash-card { height: min(520px, 118vw); border-radius: var(--r3); background: var(--glass); border: 1px solid var(--glass-border); display: grid; place-items: center; color: var(--gold); font-size: 1.6rem; }
 /* Photos: blurred preview (inline background) or a warm placeholder until the real image paints over it. */
 img.ph { background-color: var(--ph-bg); background-size: cover; background-position: center; background-repeat: no-repeat; }
 .chef-hero { background: var(--ph-bg); }
+.mode-opt { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--input-bdr); background: var(--input-bg); cursor: pointer; font-family: var(--sans); letter-spacing: 0; text-transform: none; color: var(--text); font-size: 0.9rem; }
+.mode-opt input { margin-top: 4px; accent-color: var(--gold); }
+.mode-opt:has(input:checked) { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }

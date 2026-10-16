@@ -86,7 +86,7 @@ Please arrive 10 minutes early. See you soon!
 Team Heebee`,
   relaunch: `Hi {name},
 
-Good news! *{event}* is back at Heebee, with new batches open now.
+Good news! Booking is now open for *{event}* at Heebee.
 
 Pick your batch and join the waitlist here:
 {link}
@@ -94,6 +94,17 @@ Pick your batch and join the waitlist here:
 Seats are limited, so join early!
 Team Heebee`,
 };
+
+// Earlier default, swapped for the new wording if it was saved unchanged.
+export const OLD_RELAUNCH = `Hi {name},
+
+Good news! *{event}* is back at Heebee, with new batches open now.
+
+Pick your batch and join the waitlist here:
+{link}
+
+Seats are limited, so join early!
+Team Heebee`;
 
 export const DEFAULT_SETTINGS = {
   whatsapp: '',
